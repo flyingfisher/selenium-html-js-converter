@@ -1,5 +1,5 @@
 {
-  "name": "selenium-javascript-converter",
+  "name": "selenium-html-js-converter",
   "version": "0.1.0",
   "description": "Convert selenium html to javascript (selenium-webdriver)",
   "main": "index.js",
@@ -7,9 +7,11 @@
     "test": "test"
   },
   "dependencies": {
-    "xml2js": "^0.4.4"
+    "xml2js": "0.4.4"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "typescript": "1.0.1"
+  },
   "scripts": {
     "test": "node test/test.js"
   },
@@ -18,5 +20,10 @@
     "converter"
   ],
   "author": "yu.flying1004@gmail.com",
-  "license": "MIT"
+  "license": "BSD",
+  "gitHead": "36eaac20fd5d7ddc66f314a8b3d22d2223ba28a0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/flyingfisher/selenium-html-js-converter.git"
+  }
 }
