@@ -949,8 +949,8 @@ Equals.prototype.toString = function() {
 
 Equals.prototype.assert = function() {
   return "assert.equal(" + this.e1.toString() + ", " + this.e2.toString()
-    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: "
-    +  + this.e2.toString() + "');";
+    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
+    + this.e2.toString() + ");";
 };
 
 Equals.prototype.verify = function() {
@@ -963,8 +963,8 @@ NotEquals.prototype.toString = function() {
 
 NotEquals.prototype.assert = function() {
   return "assert.notEqual(" + this.e1.toString() + ", " + this.e2.toString()
-    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: "
-    +  + this.e2.toString() + "');";
+    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
+    + this.e2.toString() + ");";
 };
 
 NotEquals.prototype.verify = function() {
