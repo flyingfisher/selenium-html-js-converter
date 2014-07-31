@@ -1,6 +1,6 @@
 {
   "name": "selenium-html-js-converter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Convert selenium html to javascript (selenium-webdriver)",
   "main": "index.js",
   "directories": {
