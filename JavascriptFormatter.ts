@@ -1008,7 +1008,7 @@ function verify(statement) {
   return "try {\n" +
       indents(1) + statement + "\n" +
       "} catch (e) {\n" +
-      indents(1) + "verificationErrors.push(e.toString());\n" +
+      indents(1) + "verificationErrors && verificationErrors.push(e.toString());\n" +
       "}";
 }
 
@@ -1183,7 +1183,9 @@ function defaultExtension() {
   return app.options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (webdriver, driver, baseUrl, acceptNextAlert, verificationErrors)  {\n\n"
+options.header = "var async = require('asyncawait/async');\n"
+    + "var await = require('asyncawait/await'); \n"
+    + "module.exports = async(function ${methodName} (webdriver, driver, baseUrl, acceptNextAlert, verificationErrors)  {\n\n"
 //    + indents(0) + 'var seleniumIde = require("./selenium-ide.js");\n'
     + indents(0) + "var assert = require('assert');\n"
     + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n'
@@ -1192,7 +1194,7 @@ options.header = "module.exports = function ${methodName} (webdriver, driver, ba
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
 
-options.footer = "\n}\n\n" + ideFunc;
+options.footer = "\n});\n\n" + ideFunc;
 
 app.configForm =
         '<description>Header</description>' +
@@ -1254,11 +1256,11 @@ WDAPI.Driver.prototype.findElement = function(locatorType, locator) {
 };
 
 WDAPI.Driver.prototype.findElements = function(locatorType, locator) {
-  return new WDAPI.ElementList(this.ref + ".findElements(" + WDAPI.Driver.searchContext(locatorType, locator) + ")");
+  return new WDAPI.ElementList("await(" + this.ref + ".findElements(" + WDAPI.Driver.searchContext(locatorType, locator) + "))");
 };
 
 WDAPI.Driver.prototype.getCurrentUrl = function() {
-  return this.ref + ".getCurrentUrl()";
+  return "await(" + this.ref + ".getCurrentUrl())";
 };
 
 WDAPI.Driver.prototype.get = function(url) {
@@ -1270,7 +1272,7 @@ WDAPI.Driver.prototype.get = function(url) {
 };
 
 WDAPI.Driver.prototype.getTitle = function() {
-  return this.ref + ".getTitle()";
+  return "await(" + this.ref + ".getTitle())";
 };
 
 WDAPI.Driver.prototype.getAlert = function() {
@@ -1303,19 +1305,19 @@ WDAPI.Element.prototype.click = function() {
 };
 
 WDAPI.Element.prototype.getAttribute = function(attributeName) {
-  return this.ref + ".getAttribute(" + xlateArgument(attributeName) + ")";
+  return "await(" + this.ref + ".getAttribute(" + xlateArgument(attributeName) + "))";
 };
 
 WDAPI.Element.prototype.getText = function() {
-  return this.ref + ".getText()";
+  return "await(" + this.ref + ".getText())";
 };
 
 WDAPI.Element.prototype.isDisplayed = function() {
-  return this.ref + ".isDisplayed()";
+  return "await(" + this.ref + ".isDisplayed())";
 };
 
 WDAPI.Element.prototype.isSelected = function() {
-  return this.ref + ".isSelected()";
+  return "await(" + this.ref + ".isSelected())";
 };
 
 WDAPI.Element.prototype.sendKeys = function(text) {
@@ -1328,12 +1330,12 @@ WDAPI.Element.prototype.submit = function() {
 
 WDAPI.Element.prototype.select = function(selectLocator) {
   if (selectLocator.type == 'index') {
-      return this.ref + ".findElement(webdriver.By.xpath('option[" + selectLocator.string + "]')).click();";
+      return this.ref + ".findElement(webdriver.By.xpath('option[" + selectLocator.string + "]')).click()";
   }
   if (selectLocator.type == 'value') {
-      return this.ref + ".findElement(webdriver.By.xpath('option[@value=" + xlateArgument(selectLocator.string) + "][1]')).click();";
+      return this.ref + ".findElement(webdriver.By.xpath('option[@value=" + xlateArgument(selectLocator.string) + "][1]')).click()";
   }
-  return this.ref + ".findElement(webdriver.By.xpath('option[text()=" + xlateArgument(selectLocator.string) + "][1]')).click();";
+  return this.ref + ".findElement(webdriver.By.xpath('option[text()=" + xlateArgument(selectLocator.string) + "][1]')).click()";
 };
 
 WDAPI.ElementList = function(ref) {
@@ -1345,11 +1347,11 @@ WDAPI.ElementList.prototype.getItem = function(index) {
 };
 
 WDAPI.ElementList.prototype.getSize = function() {
-  return this.ref + ".size()";
+  return this.ref + ".length";
 };
 
 WDAPI.ElementList.prototype.isEmpty = function() {
-  return this.ref + ".isEmpty()";
+  return "isEmptyArray(" + this.ref + ")";
 };
 
 WDAPI.Utils = function() {

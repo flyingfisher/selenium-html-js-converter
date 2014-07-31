@@ -28,6 +28,10 @@ function closeAlertAndGetItsText(driver, acceptNextAlert) {
         return alertText;
     } catch (ignore) {}
 }
+
+function isEmptyArray(arr){
+    return !(arr && arr.length);
+}
 //
 //module.exports.isElementPresent = isElementPresent;
 //module.exports.isAlertPresent = isAlertPresent;
