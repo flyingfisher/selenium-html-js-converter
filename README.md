@@ -4,6 +4,7 @@ Install
 ```
 $npm install selenium-html-js-converter
 ```
+Usage
 
 ```
 var converter = require("selenium-html-js-converter");
