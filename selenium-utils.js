@@ -1,29 +1,19 @@
-function isElementPresent(driver, by) {
+function isAlertPresent(browser) {
     try {
-        driver.findElement(by);
+        browser.alertText();
         return true;
     } catch (e) {
         return false;
     }
 }
 
-function isAlertPresent(driver) {
+function closeAlertAndGetItsText(browser, acceptNextAlert) {
     try {
-        driver.switchTo().alert();
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
-
-function closeAlertAndGetItsText(driver, acceptNextAlert) {
-    try {
-        var alert = driver.switchTo().alert();
-        var alertText = alert.getText();
+        var alertText = browser.alertText() ;
         if (acceptNextAlert) {
-            alert.accept();
+            browser.acceptAlert();
         } else {
-            alert.dismiss();
+            browser.dismissAlert();
         }
         return alertText;
     } catch (ignore) {}
