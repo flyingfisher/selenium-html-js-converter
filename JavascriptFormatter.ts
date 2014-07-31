@@ -972,7 +972,7 @@ NotEquals.prototype.verify = function() {
 };
 
 function joinExpression(expression) {
-  return "join(" + expression.toString() + ", ',')";
+  return expression.toString()+".join(',')";
 }
 
 function statement(expression, command?) {
@@ -994,14 +994,14 @@ function ifCondition(expression, callback) {
 
 function assertTrue(expression) {
   return "assert.strictEqual(" + expression.toString() + ", true"
-    + ", 'Assertion error: Expected: true, Actual: "
-    + expression.toString() + "');";
+    + ", 'Assertion error: Expected: true, Actual:' "
+    + expression.toString() + ");";
 }
 
 function assertFalse(expression) {
   return "assert.strictEqual(" + expression.toString() + ", false"
-    + ", 'Assertion error: Expected: false, Actual: "
-    + expression.toString() + "');";
+    + ", 'Assertion error: Expected: false, Actual: ' "
+    + expression.toString() + ");";
 }
 
 function verify(statement) {
@@ -1036,7 +1036,7 @@ function assertOrVerifyFailure(line, isAssert) {
 }
 
 function pause(milliseconds) {
-  return "Thread.sleep(" + parseInt(milliseconds, 10) + ");";
+  return "driver.sleep(" + parseInt(milliseconds, 10) + ");";
 }
 
 function echo(message) {
@@ -1189,7 +1189,10 @@ options.header = "module.exports = function ${methodName} (webdriver, driver, ba
     + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n'
     + indents(0) + "acceptNextAlert = true;\n";
 
-options.footer = "\n}\n\n";
+var fs = require("fs");
+var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
+
+options.footer = "\n}\n\n" + ideFunc;
 
 app.configForm =
         '<description>Header</description>' +
@@ -1271,8 +1274,8 @@ WDAPI.Driver.prototype.getTitle = function() {
 };
 
 WDAPI.Driver.prototype.getAlert = function() {
-  return "seleniumIde.closeAlertAndGetItsText(driver, acceptNextAlert);\n"
-    + "acceptNextAlert = true";
+    return "closeAlertAndGetItsText(driver, acceptNextAlert);\n"
+        + "acceptNextAlert = true";
 };
 
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function() {
@@ -1353,9 +1356,9 @@ WDAPI.Utils = function() {
 };
 
 WDAPI.Utils.isElementPresent = function(how, what) {
-  return "seleniumIde.isElementPresent(driver, " + WDAPI.Driver.searchContext(how, what) + ")";
+  return "isElementPresent(driver, " + WDAPI.Driver.searchContext(how, what) + ")";
 };
 
 WDAPI.Utils.isAlertPresent = function() {
-  return "seleniumIde.isAlertPresent(driver)";
+  return "isAlertPresent(driver)";
 };

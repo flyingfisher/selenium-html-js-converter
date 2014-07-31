@@ -962,7 +962,7 @@ NotEquals.prototype.verify = function () {
 };
 
 function joinExpression(expression) {
-    return "join(" + expression.toString() + ", ',')";
+    return expression.toString() + ".join(',')";
 }
 
 function statement(expression, command) {
@@ -982,11 +982,11 @@ function ifCondition(expression, callback) {
 }
 
 function assertTrue(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", true" + ", 'Assertion error: Expected: true, Actual: " + expression.toString() + "');";
+    return "assert.strictEqual(" + expression.toString() + ", true" + ", 'Assertion error: Expected: true, Actual:' " + expression.toString() + ");";
 }
 
 function assertFalse(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", false" + ", 'Assertion error: Expected: false, Actual: " + expression.toString() + "');";
+    return "assert.strictEqual(" + expression.toString() + ", false" + ", 'Assertion error: Expected: false, Actual: ' " + expression.toString() + ");";
 }
 
 function verify(statement) {
@@ -1014,7 +1014,7 @@ function assertOrVerifyFailure(line, isAssert) {
 }
 
 function pause(milliseconds) {
-    return "Thread.sleep(" + parseInt(milliseconds, 10) + ");";
+    return "driver.sleep(" + parseInt(milliseconds, 10) + ");";
 }
 
 function echo(message) {
@@ -1143,7 +1143,10 @@ function defaultExtension() {
 
 options.header = "module.exports = function ${methodName} (webdriver, driver, baseUrl, acceptNextAlert, verificationErrors)  {\n\n" + indents(0) + "var assert = require('assert');\n" + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n' + indents(0) + "acceptNextAlert = true;\n";
 
-options.footer = "\n}\n\n";
+var fs = require("fs");
+var ideFunc = fs.readFileSync(__dirname + "/selenium-utils.js", "utf-8");
+
+options.footer = "\n}\n\n" + ideFunc;
 
 app.configForm = '<description>Header</description>' + '<textbox id="options_header" multiline="true" flex="1" rows="4"/>' + '<description>Footer</description>' + '<textbox id="options_footer" multiline="true" flex="1" rows="4"/>' + '<description>Indent</description>' + '<menulist id="options_indent"><menupopup>' + '<menuitem label="Tab" value="tab"/>' + '<menuitem label="1 space" value="1"/>' + '<menuitem label="2 spaces" value="2"/>' + '<menuitem label="3 spaces" value="3"/>' + '<menuitem label="4 spaces" value="4"/>' + '<menuitem label="5 spaces" value="5"/>' + '<menuitem label="6 spaces" value="6"/>' + '<menuitem label="7 spaces" value="7"/>' + '<menuitem label="8 spaces" value="8"/>' + '</menupopup></menulist>' + '<checkbox id="options_showSelenese" label="Show Selenese"/>';
 
@@ -1208,7 +1211,7 @@ WDAPI.Driver.prototype.getTitle = function () {
 };
 
 WDAPI.Driver.prototype.getAlert = function () {
-    return "seleniumIde.closeAlertAndGetItsText(driver, acceptNextAlert);\n" + "acceptNextAlert = true";
+    return "closeAlertAndGetItsText(driver, acceptNextAlert);\n" + "acceptNextAlert = true";
 };
 
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function () {
@@ -1289,9 +1292,9 @@ WDAPI.Utils = function () {
 };
 
 WDAPI.Utils.isElementPresent = function (how, what) {
-    return "seleniumIde.isElementPresent(driver, " + WDAPI.Driver.searchContext(how, what) + ")";
+    return "isElementPresent(driver, " + WDAPI.Driver.searchContext(how, what) + ")";
 };
 
 WDAPI.Utils.isAlertPresent = function () {
-    return "seleniumIde.isAlertPresent(driver)";
+    return "isAlertPresent(driver)";
 };

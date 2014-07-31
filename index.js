@@ -11,13 +11,17 @@ xmlParser.parseString(fs.readFileSync(__dirname+"/iedoc-core.xml","utf-8"), func
 exports.convertHtmlToJs=function (htmlFile, jsFile){
     if (!htmlFile || !jsFile)
         return;
+    var testCaseName = jsFile.split("/").pop().split(".")[0];
+
+    testCaseName = testCaseName.replace(/[^\w_0-9]*/g,""); // remove unsupported alpha
+    if (testCaseName.toLowerCase().indexOf("test") === -1)
+        testCaseName = "test_" + testCaseName;
 
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
-    var testCase = new TestCase();
+    var testCase = new TestCase(testCaseName);
     testCaseParser.parse(testCase,htmlStr);
 
     var formatter = require(__dirname+"/JavascriptFormatter");
-    var testCaseName = jsFile.split("/").pop().split(".")[0];
     var testJS = formatter.format(testCase, testCaseName);
 
     fs.writeFileSync(jsFile, testJS, "utf-8");
