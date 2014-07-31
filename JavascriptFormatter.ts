@@ -1328,12 +1328,12 @@ WDAPI.Element.prototype.submit = function() {
 
 WDAPI.Element.prototype.select = function(selectLocator) {
   if (selectLocator.type == 'index') {
-      return "driver.findElement(" + this.ref + ").findElement(webdriver.By.xpath('option[" + selectLocator.string + "]')).click();";
+      return this.ref + ".findElement(webdriver.By.xpath('option[" + selectLocator.string + "]')).click();";
   }
   if (selectLocator.type == 'value') {
-      return "driver.findElement(" + this.ref + ").findElement(webdriver.By.xpath('option[@value=" + xlateArgument(selectLocator.string) + "][1]')).click();";
+      return this.ref + ".findElement(webdriver.By.xpath('option[@value=" + xlateArgument(selectLocator.string) + "][1]')).click();";
   }
-  return "driver.findElement(" + this.ref + ").findElement(webdriver.By.xpath('option[text()=" + xlateArgument(selectLocator.string) + "][1]')).click();";
+  return this.ref + ".findElement(webdriver.By.xpath('option[text()=" + xlateArgument(selectLocator.string) + "][1]')).click();";
 };
 
 WDAPI.ElementList = function(ref) {
