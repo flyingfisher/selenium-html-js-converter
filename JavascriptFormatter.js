@@ -119,8 +119,7 @@ function setIndent(i) {
 app.postFilter = function (originalCommands) {
     var commands = [];
     var commandsToSkip = {
-        'waitForPageToLoad': 1,
-        'pause': 1
+        'waitForPageToLoad': 1
     };
     var rc;
     for (var i = 0; i < originalCommands.length; i++) {
