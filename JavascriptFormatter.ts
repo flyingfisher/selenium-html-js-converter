@@ -459,9 +459,7 @@ function newVariable(prefix, index) {
 }
 
 function variableName(value) {
-  if (app.declaredVars[value])
-    return value;
-  return "";
+  return value;
 }
 
 function string(value) {
@@ -1193,10 +1191,11 @@ function defaultExtension() {
   return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, baseUrl, acceptNextAlert, verificationErrors)  {\n\n"
+options.header = "module.exports = function ${methodName} (browser, lbParam, verificationErrors)  {\n\n"
+    + indents(1) + "if (!lbParam) lbParam = {vuSn: 1};\n"
     + indents(1) + "var assert = require('assert');\n"
-    + indents(1) + 'baseUrl = "${baseURL}" || baseUrl;\n'
-    + indents(1) + "acceptNextAlert = true;\n";
+    + indents(1) + 'var baseUrl = "${baseURL}";\n'
+    + indents(1) + "var acceptNextAlert = true;\n";
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
