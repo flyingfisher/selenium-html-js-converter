@@ -1,5 +1,7 @@
 A small tools to convert 'selenium-IDE' html test cases into javascript test cases with <a href='https://github.com/sebv/node-wd-sync'>Node wd-sync</a> :
 
+Attention: only support test case html now, test suit html is not supported yet.
+
 Install
 ```
 $npm install selenium-html-js-converter
