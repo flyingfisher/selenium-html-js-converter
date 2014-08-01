@@ -28,9 +28,10 @@ var client = wdSync.remote("127.0.0.1",8910) //phatomjs default wd port
 var test1 = require("./OutJsFile");
 
 sync(function(){
+  browser.init({browserName: 'phatomjs'});
   test1(browser);
   browser.quit();
-  });
+});
 ```
 Ref to <a href='https://github.com/sebv/node-wd-sync/blob/master/doc/jsonwire-full-mapping.md'>wd-sync api</a>
 

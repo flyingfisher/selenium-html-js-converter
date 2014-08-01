@@ -1143,18 +1143,18 @@ formattedSuite += "\n"
 + indents(0) + "//" + suiteClass + ".run();";
 return formattedSuite;
 }*/
-app.options = {
+options = {
     indent: '4',
-    initialIndents: '0',
+    initialIndents: '1',
     showSelenese: 'false',
     defaultExtension: "js"
 };
 
 function defaultExtension() {
-    return app.options.defaultExtension;
+    return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, baseUrl, acceptNextAlert, verificationErrors)  {\n\n" + indents(0) + "var assert = require('assert');\n" + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n' + indents(0) + "acceptNextAlert = true;\n";
+options.header = "module.exports = function ${methodName} (browser, baseUrl, acceptNextAlert, verificationErrors)  {\n\n" + indents(1) + "var assert = require('assert');\n" + indents(1) + 'baseUrl = "${baseURL}" || baseUrl;\n' + indents(1) + "acceptNextAlert = true;\n";
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname + "/selenium-utils.js", "utf-8");
@@ -1232,7 +1232,7 @@ WDAPI.Driver.prototype.get = function (url) {
     if (url.length > 1 && (url.substring(1, 8) == "http://" || url.substring(1, 9) == "https://")) {
         return this.ref + ".get(" + url + ")";
     } else {
-        return this.ref + ".get(baseUrl + " + url + ")";
+        return this.ref + ".get(addUrl(baseUrl, " + url + "))";
     }
 };
 
@@ -1294,7 +1294,7 @@ WDAPI.Element.prototype.submit = function () {
 
 WDAPI.Element.prototype.select = function (selectLocator) {
     if (selectLocator.type == 'index') {
-        return this.ref + ".elementByXPath('option[" + selectLocator.string + "]').click()";
+        return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) - 1) || 0) + "]').click()";
     }
     if (selectLocator.type == 'value') {
         return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
