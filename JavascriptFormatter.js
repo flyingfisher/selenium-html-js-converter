@@ -563,7 +563,7 @@ function formatCommand(command) {
                         line = waitFor(eq);
                     }
                 }
-            } else if (app.pause && 'pause' == command.command) {
+            } else if ('pause' == command.command) {
                 line = pause(command.target);
             } else if (app.echo && 'echo' == command.command) {
                 line = echo(command.target);
