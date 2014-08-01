@@ -11,7 +11,7 @@ Usage
 ```
 var converter = require("selenium-html-js-converter");
 
-converter.convertHtmlToJs(YourHtmlFile, OutJsFile);
+converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile);
 ```
 
 Before your run the javascript, you need install <a href='https://github.com/sebv/node-wd-sync'>Node wd-sync</a>, which are used in the test case.
@@ -40,4 +40,11 @@ Ref to <a href='https://github.com/sebv/node-wd-sync/blob/master/doc/jsonwire-fu
 If your want to run the previous javascript success, you should start a <a href='http://phantomjs.org'>phantomjs</a> webdriver server in another process.
 ```
 phantomjs --wd
+```
+Api Usage:
+```
+convertHtmlFileToJsFile(filePath, filePath) => void;
+convertHtmlStrToJsFile(htmlStr, filePath) => void;
+convertHtmlFileToJsStr(filePath, testCaseName?) => string;
+convertHtmlStrToJsStr(htmlStr, testCaseName?) => string;
 ```
