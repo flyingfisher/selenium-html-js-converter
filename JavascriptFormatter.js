@@ -1006,7 +1006,7 @@ RegexpMatch.prototype.toString = function () {
 };
 
 function waitFor(expression) {
-    return "driver.wait(function(){\n" + (expression.setup ? indents(1) + expression.setup() + "\n" : "") + indents(1) + "return (" + expression.toString() + ");\n" + indents(0) + "}, 30, 'Timeout');\n";
+    return "browser.waitFor(function(){\n" + (expression.setup ? indents(1) + expression.setup() + "\n" : "") + indents(1) + "return (" + expression.toString() + ");\n" + indents(0) + "}, 30, 'Timeout');\n";
 }
 
 function assertOrVerifyFailure(line, isAssert) {
@@ -1014,7 +1014,7 @@ function assertOrVerifyFailure(line, isAssert) {
 }
 
 function pause(milliseconds) {
-    return "driver.sleep(" + parseInt(milliseconds, 10) + ");";
+    return "browser.sleep(" + parseInt(milliseconds, 10) + ");";
 }
 
 function echo(message) {
@@ -1108,28 +1108,41 @@ app.sendKeysMaping = {
     COMMAND: "COMMAND"
 };
 
+// not implemented, edit late // fish
 /**
 * Returns a string representing the suite for this formatter language.
 *
 * @param testSuite  the suite to format
 * @param filename   the file the formatted suite will be saved as
 */
-function formatSuite(testSuite, filename) {
-    var suiteClass = /^(\w+)/.exec(filename)[1];
-    suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
-
-    var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
-
-    for (var i = 0; i < testSuite.tests.length; ++i) {
-        var testClass = testSuite.tests[i].getTitle();
-        formattedSuite += suiteClass + ".tests['" + testClass + "'] = require('./" + testClass + ".js');\n";
-    }
-
-    formattedSuite += "\n" + indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n" + indents(1) + "var webdriver = require('selenium-webdriver');\n" + indents(1) + "\n" + indents(1) + "var driver = new webdriver.Builder().\n" + indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n" + indents(2) + "build();\n" + indents(1) + 'var baseUrl = "";\n' + indents(1) + "var acceptNextAlert = true;\n" + indents(1) + "var verificationErrors = [];\n" + indents(1) + "\n" + indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n" + indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n" + indents(1) + "});\n" + indents(0) + "}\n" + indents(1) + "\n" + indents(0) + "module.exports = " + suiteClass + ";\n" + indents(0) + "//" + suiteClass + ".run();";
-
-    return formattedSuite;
+/*function formatSuite(testSuite, filename) {
+var suiteClass = /^(\w+)/.exec(filename)[1];
+suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
+var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
+for (var i = 0; i < testSuite.tests.length; ++i) {
+var testClass = testSuite.tests[i].getTitle();
+formattedSuite += suiteClass + ".tests['" + testClass + "'] = require('./" + testClass + ".js');\n";
 }
-
+formattedSuite += "\n"
++ indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n"
++ indents(1) + "var webdriver = require('selenium-webdriver');\n"
++ indents(1) + "\n"
++ indents(1) + "var driver = new webdriver.Builder().\n"
++ indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n"
++ indents(2) + "build();\n"
++ indents(1) + 'var baseUrl = "";\n'
++ indents(1) + "var acceptNextAlert = true;\n"
++ indents(1) + "var verificationErrors = [];\n"
++ indents(1) + "\n"
++ indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
++ indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
++ indents(1) + "});\n"
++ indents(0) + "}\n"
++ indents(1) + "\n"
++ indents(0) + "module.exports = " + suiteClass + ";\n"
++ indents(0) + "//" + suiteClass + ".run();";
+return formattedSuite;
+}*/
 app.options = {
     indent: '4',
     initialIndents: '0',
@@ -1141,45 +1154,62 @@ function defaultExtension() {
     return app.options.defaultExtension;
 }
 
-options.header = "var async = require('asyncawait/async');\n" + "var await = require('asyncawait/await'); \n" + "module.exports = async(function ${methodName} (webdriver, driver, baseUrl, acceptNextAlert, verificationErrors)  {\n\n" + indents(0) + "var assert = require('assert');\n" + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n' + indents(0) + "acceptNextAlert = true;\n";
+options.header = "module.exports = function ${methodName} (browser, baseUrl, acceptNextAlert, verificationErrors)  {\n\n" + indents(0) + "var assert = require('assert');\n" + indents(0) + 'baseUrl = "${baseURL}" || baseUrl;\n' + indents(0) + "acceptNextAlert = true;\n";
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname + "/selenium-utils.js", "utf-8");
 
-options.footer = "\n});\n\n" + ideFunc;
+options.footer = "\n};\n\n" + ideFunc;
 
-app.configForm = '<description>Header</description>' + '<textbox id="options_header" multiline="true" flex="1" rows="4"/>' + '<description>Footer</description>' + '<textbox id="options_footer" multiline="true" flex="1" rows="4"/>' + '<description>Indent</description>' + '<menulist id="options_indent"><menupopup>' + '<menuitem label="Tab" value="tab"/>' + '<menuitem label="1 space" value="1"/>' + '<menuitem label="2 spaces" value="2"/>' + '<menuitem label="3 spaces" value="3"/>' + '<menuitem label="4 spaces" value="4"/>' + '<menuitem label="5 spaces" value="5"/>' + '<menuitem label="6 spaces" value="6"/>' + '<menuitem label="7 spaces" value="7"/>' + '<menuitem label="8 spaces" value="8"/>' + '</menupopup></menulist>' + '<checkbox id="options_showSelenese" label="Show Selenese"/>';
-
-app.name = "Node (WebDriver)";
+/* no used in node, but should be used in selenium-ide, obsoleted
+app.configForm =
+'<description>Header</description>' +
+'<textbox id="options_header" multiline="true" flex="1" rows="4"/>' +
+'<description>Footer</description>' +
+'<textbox id="options_footer" multiline="true" flex="1" rows="4"/>' +
+'<description>Indent</description>' +
+'<menulist id="options_indent"><menupopup>' +
+'<menuitem label="Tab" value="tab"/>' +
+'<menuitem label="1 space" value="1"/>' +
+'<menuitem label="2 spaces" value="2"/>' +
+'<menuitem label="3 spaces" value="3"/>' +
+'<menuitem label="4 spaces" value="4"/>' +
+'<menuitem label="5 spaces" value="5"/>' +
+'<menuitem label="6 spaces" value="6"/>' +
+'<menuitem label="7 spaces" value="7"/>' +
+'<menuitem label="8 spaces" value="8"/>' +
+'</menupopup></menulist>' +
+'<checkbox id="options_showSelenese" label="Show Selenese"/>';*/
+app.name = "Node (wd-sync)";
 app.testcaseExtension = ".js";
 app.suiteExtension = ".js";
 app.webdriver = true;
 
 WDAPI.Driver = function () {
-    this.ref = 'driver';
+    this.ref = 'browser';
 };
 
 WDAPI.Driver.searchContext = function (locatorType, locator) {
     var locatorString = xlateArgument(locator);
     switch (locatorType) {
         case 'xpath':
-            return 'webdriver.By.xpath(' + locatorString + ')';
+            return 'browser.elementByXPath(' + locatorString + ')';
         case 'css':
-            return 'webdriver.By.css(' + locatorString + ')';
+            return 'browser.elementByCssSelector(' + locatorString + ')';
         case 'id':
-            return 'webdriver.By.id(' + locatorString + ')';
+            return 'browser.elementById(' + locatorString + ')';
         case 'link':
-            return 'webdriver.By.linkText(' + locatorString + ')';
+            return 'browser.elementByLinkText(' + locatorString + ')';
         case 'name':
-            return 'webdriver.By.name(' + locatorString + ')';
+            return 'browser.elementByName(' + locatorString + ')';
         case 'tag_name':
-            return 'webdriver.By.tagName(' + locatorString + ')';
+            return 'browser.elementByTagName(' + locatorString + ')';
     }
     throw 'Error: unknown strategy [' + locatorType + '] for locator [' + locator + ']';
 };
 
 WDAPI.Driver.prototype.back = function () {
-    return this.ref + ".navigate().back()";
+    return this.ref + ".back()";
 };
 
 WDAPI.Driver.prototype.close = function () {
@@ -1187,15 +1217,15 @@ WDAPI.Driver.prototype.close = function () {
 };
 
 WDAPI.Driver.prototype.findElement = function (locatorType, locator) {
-    return new WDAPI.Element(this.ref + ".findElement(" + WDAPI.Driver.searchContext(locatorType, locator) + ")");
+    return new WDAPI.Element(WDAPI.Driver.searchContext(locatorType, locator));
 };
 
 WDAPI.Driver.prototype.findElements = function (locatorType, locator) {
-    return new WDAPI.ElementList("await(" + this.ref + ".findElements(" + WDAPI.Driver.searchContext(locatorType, locator) + "))");
+    return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element", "elements"));
 };
 
 WDAPI.Driver.prototype.getCurrentUrl = function () {
-    return "await(" + this.ref + ".getCurrentUrl())";
+    return this.ref + ".url()";
 };
 
 WDAPI.Driver.prototype.get = function (url) {
@@ -1207,11 +1237,11 @@ WDAPI.Driver.prototype.get = function (url) {
 };
 
 WDAPI.Driver.prototype.getTitle = function () {
-    return "await(" + this.ref + ".getTitle())";
+    return this.ref + ".title()";
 };
 
 WDAPI.Driver.prototype.getAlert = function () {
-    return "closeAlertAndGetItsText(driver, acceptNextAlert);\n" + "acceptNextAlert = true";
+    return "closeAlertAndGetItsText(browser, acceptNextAlert);\n" + "acceptNextAlert = true";
 };
 
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function () {
@@ -1223,7 +1253,7 @@ WDAPI.Driver.prototype.chooseCancelOnNextConfirmation = function () {
 };
 
 WDAPI.Driver.prototype.refresh = function () {
-    return this.ref + ".navigate().refresh()";
+    return this.ref + ".refresh()";
 };
 
 WDAPI.Element = function (ref) {
@@ -1239,19 +1269,19 @@ WDAPI.Element.prototype.click = function () {
 };
 
 WDAPI.Element.prototype.getAttribute = function (attributeName) {
-    return "await(" + this.ref + ".getAttribute(" + xlateArgument(attributeName) + "))";
+    return this.ref + ".getAttribute(" + xlateArgument(attributeName) + ")";
 };
 
 WDAPI.Element.prototype.getText = function () {
-    return "await(" + this.ref + ".getText())";
+    return this.ref + ".text()";
 };
 
 WDAPI.Element.prototype.isDisplayed = function () {
-    return "await(" + this.ref + ".isDisplayed())";
+    return this.ref + ".isDisplayed()";
 };
 
 WDAPI.Element.prototype.isSelected = function () {
-    return "await(" + this.ref + ".isSelected())";
+    return this.ref + ".isSelected()";
 };
 
 WDAPI.Element.prototype.sendKeys = function (text) {
@@ -1264,12 +1294,12 @@ WDAPI.Element.prototype.submit = function () {
 
 WDAPI.Element.prototype.select = function (selectLocator) {
     if (selectLocator.type == 'index') {
-        return this.ref + ".findElement(webdriver.By.xpath('option[" + selectLocator.string + "]')).click()";
+        return this.ref + ".elementByXPath('option[" + selectLocator.string + "]').click()";
     }
     if (selectLocator.type == 'value') {
-        return this.ref + ".findElement(webdriver.By.xpath('option[@value=" + xlateArgument(selectLocator.string) + "][1]')).click()";
+        return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
     }
-    return this.ref + ".findElement(webdriver.By.xpath('option[text()=" + xlateArgument(selectLocator.string) + "][1]')).click()";
+    return this.ref + ".elementByXPath('option[text()=" + xlateArgument(selectLocator.string) + "][1]').click()";
 };
 
 WDAPI.ElementList = function (ref) {
@@ -1292,9 +1322,10 @@ WDAPI.Utils = function () {
 };
 
 WDAPI.Utils.isElementPresent = function (how, what) {
-    return "isElementPresent(driver, " + WDAPI.Driver.searchContext(how, what) + ")";
+    return WDAPI.Driver.searchContext(how, what).replace("element", "hasElement");
 };
 
 WDAPI.Utils.isAlertPresent = function () {
-    return "isAlertPresent(driver)";
+    return "isAlertPresent(browser)";
 };
+//# sourceMappingURL=JavascriptFormatter.js.map
