@@ -339,7 +339,9 @@ function seleniumEquals(type, pattern, expression) {
 }
 
 function concatString(array) {
-    return array.join(" + ");
+    return array.filter(function (e) {
+        return e;
+    }).join(" + ");
 }
 
 function toArgumentList(array) {
@@ -371,7 +373,7 @@ function xlateArgument(value, type) {
     if ((r = /^javascript\{([\d\D]*)\}$/.exec(value))) {
         var js = r[1];
         var prefix = "";
-        while ((r2 = /storedVars\['(.*?)'\]/.exec(js))) {
+        while ((r2 = /storedVars\[['"](.*?)['"]\]/.exec(js))) {
             parts.push(string(prefix + js.substring(0, r2.index) + "'"));
             parts.push(variableName(r2[1]));
             js = js.substring(r2.index + r2[0].length);
@@ -455,7 +457,9 @@ function newVariable(prefix, index) {
 }
 
 function variableName(value) {
-    return value;
+    if (app.declaredVars[value])
+        return value;
+    return "";
 }
 
 function string(value) {
@@ -501,6 +505,8 @@ CallSelenium.prototype.toString = function () {
     }
     var result = '';
     var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
+    if (this.message == 'getEval')
+        adaptor.rawArgs = this.args; // getEval only args available
     if (adaptor[this.message]) {
         var codeBlock = adaptor[this.message].call(adaptor);
         if (adaptor.negative) {
@@ -909,6 +915,11 @@ SeleniumWebDriverAdaptor.prototype.select = function (elementLocator, label) {
     return driver.findElement(locator.type, locator.string).select(this._selectLocator(this.rawArgs[1]));
 };
 
+SeleniumWebDriverAdaptor.prototype.getEval = function (script) {
+    var driver = new WDAPI.Driver();
+    return driver.eval(this.rawArgs[0]);
+};
+
 var WDAPI = function () {
 };
 
@@ -1006,7 +1017,7 @@ RegexpMatch.prototype.toString = function () {
 };
 
 function waitFor(expression) {
-    return "browser.waitFor(function(){\n" + (expression.setup ? indents(1) + expression.setup() + "\n" : "") + indents(1) + "return (" + expression.toString() + ");\n" + indents(0) + "}, 30, 'Timeout');\n";
+    return "waitFor(browser, function(browser){\n" + (expression.setup ? indents(1) + expression.setup() + "\n" : "") + indents(1) + "return " + expression.toString() + ";\n" + indents(0) + "}, 30000);\n";
 }
 
 function assertOrVerifyFailure(line, isAssert) {
@@ -1256,6 +1267,10 @@ WDAPI.Driver.prototype.refresh = function () {
     return this.ref + ".refresh()";
 };
 
+WDAPI.Driver.prototype.eval = function (script) {
+    return this.ref + ".safeEval(" + script + ")";
+};
+
 WDAPI.Element = function (ref) {
     this.ref = ref;
 };
@@ -1294,7 +1309,7 @@ WDAPI.Element.prototype.submit = function () {
 
 WDAPI.Element.prototype.select = function (selectLocator) {
     if (selectLocator.type == 'index') {
-        return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) - 1) || 0) + "]').click()";
+        return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
     }
     if (selectLocator.type == 'value') {
         return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";

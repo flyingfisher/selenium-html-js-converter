@@ -24,16 +24,22 @@ function isEmptyArray(arr){
 }
 
 function addUrl(baseUrl, url){
+    if (endsWith(baseUrl, url))
+        return baseUrl;
+
     if (endsWith(baseUrl,"/") && startsWith(url,"/"))
         return baseUrl.slice(0,-1) + url;
+
     return baseUrl + url;
 }
 
 function endsWith(str,endStr){
+    if (!endStr) return false;
+
     var lastIndex = str && str.lastIndexOf(endStr);
-    if (typeof lastIndex === "undefined")
-        return false;
-    return str.length === (lastIndex + 1);
+    if (typeof lastIndex === "undefined") return false;
+
+    return str.length === (lastIndex + endStr.length);
 }
 
 function startsWith(str,startStr){
@@ -41,4 +47,25 @@ function startsWith(str,startStr){
     if (typeof firstIndex === "undefined")
         return false;
     return firstIndex === 0;
+}
+
+function waitFor(browser, checkFunc, timeout, pollFreq){
+    var val;
+    if (!timeout)
+        timeout = 30000;
+    if (!pollFreq)
+        pollFreq = 200;
+    while(!val) {
+        val = checkFunc(browser);
+        if (val)
+            break;
+        if (timeout < 0) {
+            require("assert").throws("Timeout");
+            break;
+        }
+        browser.sleep(pollFreq);
+        timeout -= pollFreq;
+    }
+
+    return val;
 }
