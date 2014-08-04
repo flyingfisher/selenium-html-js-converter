@@ -53,5 +53,5 @@ exports.convertHtmlStrToJsFile=function (htmlStr, jsFile){
 
     var JsStr = exports.convertHtmlStrToJsStr(htmlStr,testCaseName);
 
-    fs.writeFileSync(jsFile, testJS, "utf-8");
+    fs.writeFileSync(jsFile, JsStr, "utf-8");
 }
