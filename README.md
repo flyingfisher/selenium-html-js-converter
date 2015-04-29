@@ -23,14 +23,14 @@ To run the javascript :
 ```
 var wdSync = require('wd-sync');
 
-var client = wdSync.remote("127.0.0.1",8910) //phatomjs default wd port
+var client = wdSync.remote("127.0.0.1",8910) //phantomjs default wd port
     , browser = client.browser
     , sync = client.sync;
 
 var test1 = require("./OutJsFile");
 
 sync(function(){
-  browser.init({browserName: 'phatomjs'});
+  browser.init({browserName: 'phantomjs'});
   test1(browser);
   browser.quit();
 });
