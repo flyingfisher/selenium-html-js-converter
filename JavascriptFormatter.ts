@@ -1001,13 +1001,13 @@ function ifCondition(expression, callback) {
 
 function assertTrue(expression) {
   return "assert.strictEqual(" + expression.toString() + ", true"
-    + ", 'Assertion error: Expected: true, Actual:' "
+    + ", 'Assertion error: Expected: true, Actual:' + "
     + expression.toString() + ");";
 }
 
 function assertFalse(expression) {
   return "assert.strictEqual(" + expression.toString() + ", false"
-    + ", 'Assertion error: Expected: false, Actual: ' "
+    + ", 'Assertion error: Expected: false, Actual: ' + "
     + expression.toString() + ");";
 }
 
