@@ -1,3 +1,5 @@
+/* jslint node: true */
+"use strict";
 console.debug = console.log;
 var testCaseParser = require(__dirname+"/convertHtmlToTestCase");
 var fs = require("fs");
@@ -20,7 +22,7 @@ exports.convertHtmlStrToJsStr=function (htmlStr, testCaseName){
 
     var formatter = require(__dirname+"/JavascriptFormatter");
     return formatter.format(testCase, testCaseName);
-}
+};
 
 exports.convertHtmlFileToJsStr=function (htmlFile, testCaseName){
     if (!htmlFile)
@@ -29,29 +31,33 @@ exports.convertHtmlFileToJsStr=function (htmlFile, testCaseName){
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
 
     return exports.convertHtmlStrToJsStr(htmlStr, testCaseName);
-}
+};
 
-exports.convertHtmlFileToJsFile=function (htmlFile, jsFile){
+exports.convertHtmlFileToJsFile=function (htmlFile, jsFile, testCaseName){
     if (!htmlFile || !jsFile)
         return;
 
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
 
-    exports.convertHtmlStrToJsFile(htmlStr, jsFile);
-}
+    exports.convertHtmlStrToJsFile(htmlStr, jsFile, testCaseName);
+};
 
 exports.convertHtmlToJs=exports.convertHtmlFileToJsFile; //compatible
 
-exports.convertHtmlStrToJsFile=function (htmlStr, jsFile){
+exports.convertHtmlStrToJsFile=function (htmlStr, jsFile, testCaseName){
     if (!htmlStr || !jsFile)
         return;
-    var testCaseName = jsFile.split("/").pop().split(".")[0];
 
-    testCaseName = testCaseName.replace(/[^\w_0-9]*/g,""); // remove unsupported alpha
-    if (testCaseName.toLowerCase().indexOf("test") === -1)
-        testCaseName = "test_" + testCaseName;
+    if (!testCaseName) {
+        testCaseName = jsFile.split("/").pop().split(".")[0];
 
-    var JsStr = exports.convertHtmlStrToJsStr(htmlStr,testCaseName);
+        testCaseName = testCaseName.replace(/[^\w_0-9]+/g,"_"); // remove unsupported alpha
+
+        if (testCaseName.toLowerCase().indexOf("test") === -1)
+            testCaseName = "test_" + testCaseName;
+    }
+
+    var JsStr = exports.convertHtmlStrToJsStr(htmlStr, testCaseName);
 
     fs.writeFileSync(jsFile, JsStr, "utf-8");
-}
+};
