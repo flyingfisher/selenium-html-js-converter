@@ -74,7 +74,7 @@ The screenshot folder can be changed at runtime by passing it to the test functi
 ```js
 sync(function(){
     browser.init({ browserName: 'phantomjs' });
-    test1(browser, null, null, { screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting' });
+    test1(browser, { screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting' });
     browser.quit();
 });
 ```

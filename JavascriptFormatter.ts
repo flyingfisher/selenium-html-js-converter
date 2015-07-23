@@ -1026,7 +1026,7 @@ function verify(statement) {
   return "try {\n" +
       indents(1) + statement + "\n" +
       "} catch (e) {\n" +
-      indents(1) + "verificationErrors && verificationErrors.push(e.toString());\n" +
+      indents(1) + "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
       "}";
 }
 
@@ -1202,9 +1202,9 @@ function defaultExtension() {
   return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, lbParam, verificationErrors, options)  {\n\n"
-    + indents(1) + "if (!lbParam) lbParam = {vuSn: 1};\n"
+options.header = "module.exports = function ${methodName} (browser, options)  {\n\n"
     + indents(1) + "if (!options) options = {};\n"
+    + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
     + indents(1) + "var assert = require('assert');\n"
     + indents(1) + 'var baseUrl = "${baseURL}";\n'
     + indents(1) + "var acceptNextAlert = true;\n";
