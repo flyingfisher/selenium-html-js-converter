@@ -18,7 +18,7 @@ var options:any = {};
  *                 It will also be used to place screenshot files.
  */
 export function format(testCase, name) {
-    app.log.info("formatting testCase: " + name);
+    app.log.info("Formatting testCase: " + name);
     var result = '';
     var header = "";
     var footer = "";
@@ -620,12 +620,12 @@ function formatCommand(command) {
           line = statement(call, command);
         }
       } else {
-        app.log.info("unknown command: <" + command.command + ">");
-        throw 'unknown command [' + command.command + ']';
+        app.log.info("Unknown command: <" + command.command + ">");
+        throw 'Unknown command [' + command.command + ']';
       }
     }
   } catch(e) {
-    app.log.error("Caught exception: [" + e + "]");
+    app.log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
     // TODO
 //    var call = new CallSelenium(command.command);
 //    if ((command.target != null && command.target.length > 0)
