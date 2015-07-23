@@ -1270,12 +1270,14 @@ WDAPI.Driver.prototype.close = function() {
 };
 
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
-  var screenshotFolder = 'screenshots/' + app.test
+  var screenshotFolder = 'screenshots/' + app.testCaseName;
 
+  if (typeof fileName === 'undefined' || fileName === '') {
     fileName = ('00000' + (++app.screenshotsCount)).slice(-5);
-
+  } else {
     // Strip any folders and file extension that might be given with the file name from the test case:
     fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+  }
 
   return 'createFolderPath("' + screenshotFolder + '");\n'
       + indents(0) + this.ref + ".saveScreenshot(\"" + screenshotFolder + '/' + fileName  + ".png\")";
