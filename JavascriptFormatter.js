@@ -1,42 +1,37 @@
 /// <reference path="typings/node.d.ts" />
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
-
 var app = {};
 app.log = console;
 app.log.debug = console.log;
 var log = app.log;
-
 var options = {};
-
 /**
-* Format TestCase and return the source.
-*
-* @param testCase TestCase to format
-* @param name The name of the test case, if any. It may be used to embed title into the source.
-*/
+ * Format TestCase and return the source.
+ *
+ * @param testCase TestCase to format
+ * @param name     The name of the test case, if any. It may be used to embed title into the source.
+ *                 It will also be used to place screenshot files.
+ */
 function format(testCase, name) {
     app.log.info("formatting testCase: " + name);
     var result = '';
     var header = "";
     var footer = "";
     app.commandCharIndex = 0;
-
+    app.testCaseName = name || '';
+    app.screenshotsCount = 0;
     header = formatHeader(testCase);
-
     result += header;
     app.commandCharIndex = header.length;
     testCase.formatLocal(app.name).header = header;
     result += formatCommands(testCase.commands);
-
     footer = formatFooter(testCase);
-
     result += footer;
     testCase.formatLocal(app.name).footer = footer;
     return result;
 }
 exports.format = format;
-
 function filterForRemoteControl(originalCommands) {
     var commands = [];
     for (var i = 0; i < originalCommands.length; i++) {
@@ -46,7 +41,8 @@ function filterForRemoteControl(originalCommands) {
             c1.command = c.command.replace(/AndWait$/, '');
             commands.push(c1);
             commands.push(new Command("waitForPageToLoad", options['global.timeout'] || "30000"));
-        } else {
+        }
+        else {
             commands.push(c);
         }
     }
@@ -56,13 +52,11 @@ function filterForRemoteControl(originalCommands) {
     }
     return commands;
 }
-
 function addIndent(lines) {
     return lines.replace(/.+/mg, function (str) {
         return indent() + str;
     });
 }
-
 function formatCommands(commands) {
     commands = filterForRemoteControl(commands);
     if (app.lastIndent == null) {
@@ -74,12 +68,14 @@ function formatCommands(commands) {
         var command = commands[i];
         if (command.type == 'line') {
             line = command.line;
-        } else if (command.type == 'command') {
+        }
+        else if (command.type == 'command') {
             line = formatCommand(command);
             if (line != null)
                 line = addIndent(line);
             command.line = line;
-        } else if (command.type == 'comment') {
+        }
+        else if (command.type == 'comment') {
             line = formatComment(command);
             if (line != null)
                 line = addIndent(line);
@@ -95,27 +91,23 @@ function formatCommands(commands) {
     }
     return result;
 }
-
 function updateIndent(line) {
     var r = /^(\s*)/.exec(line);
     if (r) {
         app.lastIndent = r[1];
     }
 }
-
 function indent() {
     return app.lastIndent || '';
 }
-
 function setIndent(i) {
     app.lastIndent = indents(i);
 }
-
 /* @override
-* This function filters the command list and strips away the commands we no longer need
-* or changes the command to another one.
-* NOTE: do not change the existing command directly or it will also change in the test case.
-*/
+ * This function filters the command list and strips away the commands we no longer need
+ * or changes the command to another one.
+ * NOTE: do not change the existing command directly or it will also change in the test case.
+ */
 app.postFilter = function (originalCommands) {
     var commands = [];
     var commandsToSkip = {
@@ -126,34 +118,34 @@ app.postFilter = function (originalCommands) {
         var c = originalCommands[i];
         if (c.type == 'command') {
             if (commandsToSkip[c.command] && commandsToSkip[c.command] == 1) {
-                //Skip
-            } else if (rc = SeleneseMapper.remap(c)) {
+            }
+            else if (rc = SeleneseMapper.remap(c)) {
                 //Remap
                 commands.push.apply(commands, rc);
-            } else {
+            }
+            else {
                 commands.push(c);
             }
-        } else {
+        }
+        else {
             commands.push(c);
         }
     }
     return commands;
 };
-
 /* SeleneseMapper changes one Selenese command to another that is more suitable for WebDriver export
-*/
+ */
 var SeleneseMapper = function () {
 };
-
 SeleneseMapper.remap = function (cmd) {
     /*
-    for (var mapper in SeleneseMapper) {
-    if (SeleneseMapper.hasOwnProperty(mapper) && typeof SeleneseMapper.mapper.isDefined === 'function'  && typeof SeleneseMapper.mapper.convert === 'function') {
-    if (SeleneseMapper.mapper.isDefined(cmd)) {
-    return SeleneseMapper.mapper.convert(cmd);
-    }
-    }
-    }
+      for (var mapper in SeleneseMapper) {
+        if (SeleneseMapper.hasOwnProperty(mapper) && typeof SeleneseMapper.mapper.isDefined === 'function'  && typeof SeleneseMapper.mapper.convert === 'function') {
+          if (SeleneseMapper.mapper.isDefined(cmd)) {
+            return SeleneseMapper.mapper.convert(cmd);
+          }
+        }
+      }
     */
     // NOTE The above code is useful if there are more than one mappers, since there is just one, it is more efficient to call it directly
     if (SeleneseMapper.IsTextPresent.isDefined(cmd)) {
@@ -161,7 +153,6 @@ SeleneseMapper.remap = function (cmd) {
     }
     return null;
 };
-
 SeleneseMapper.IsTextPresent = {
     isTextPresentRegex: /^(assert|verify|waitFor)Text(Not)?Present$/,
     isPatternRegex: /^(regexp|regexpi|regex):/,
@@ -176,7 +167,8 @@ SeleneseMapper.IsTextPresent = {
                 if (this.exactRegex.test(pattern)) {
                     //TODO how to escape wildcards in an glob pattern?
                     pattern = pattern.replace(this.exactRegex, 'glob:*') + '*';
-                } else {
+                }
+                else {
                     //glob
                     pattern = pattern.replace(/^(glob:)?\*?/, 'glob:*');
                     if (!/\*$/.test(pattern)) {
@@ -190,7 +182,6 @@ SeleneseMapper.IsTextPresent = {
         }
     }
 };
-
 function formatHeader(testCase) {
     var className = testCase.getTitle();
     if (!className) {
@@ -201,20 +192,22 @@ function formatHeader(testCase) {
     var methodName = testMethodName(className.replace(/Test$/i, "").replace(/^Test/i, "").replace(/^[A-Z]/, function (str) {
         return str.toLowerCase();
     }));
-    var header = (options.getHeader ? options.getHeader() : options.header).replace(/\$\{className\}/g, className).replace(/\$\{methodName\}/g, methodName).replace(/\$\{baseURL\}/g, testCase.getBaseURL()).replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (str, name) {
+    var header = (options.getHeader ? options.getHeader() : options.header).
+        replace(/\$\{className\}/g, className).
+        replace(/\$\{methodName\}/g, methodName).
+        replace(/\$\{baseURL\}/g, testCase.getBaseURL()).
+        replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (str, name) {
         return options[name];
     });
     app.lastIndent = indents(parseInt(options.initialIndents, 10));
     formatLocal.header = header;
     return formatLocal.header;
 }
-
 function formatFooter(testCase) {
     var formatLocal = testCase.formatLocal(app.name);
     formatLocal.footer = options.footer;
     return formatLocal.footer;
 }
-
 function indents(num) {
     function repeat(c, n) {
         var str = "";
@@ -223,135 +216,115 @@ function indents(num) {
         }
         return str;
     }
-
-    try  {
+    try {
         var indent = options.indent;
         if ('tab' == indent) {
             return repeat("\t", num);
-        } else {
+        }
+        else {
             return repeat(" ", num * parseInt(options.indent, 10));
         }
-    } catch (error) {
+    }
+    catch (error) {
         return repeat(" ", 0);
     }
 }
-
 function capitalize(string) {
     return string.replace(/^[a-z]/, function (str) {
         return str.toUpperCase();
     });
 }
-
 function underscore(text) {
     return text.replace(/[A-Z]/g, function (str) {
         return '_' + str.toLowerCase();
     });
 }
-
 function notOperator() {
     return "!";
 }
-
 function logicalAnd(conditions) {
     return conditions.join(" && ");
 }
-
 function equals(e1, e2) {
     return new Equals(e1, e2);
 }
-
 function Equals(e1, e2) {
     this.e1 = e1;
     this.e2 = e2;
 }
-
 Equals.prototype.invert = function () {
     return new NotEquals(this.e1, this.e2);
 };
-
 function NotEquals(e1, e2) {
     this.e1 = e1;
     this.e2 = e2;
     this.negative = true;
 }
-
 NotEquals.prototype.invert = function () {
     return new Equals(this.e1, this.e2);
 };
-
 function RegexpMatch(pattern, expression) {
     this.pattern = pattern;
     this.expression = expression;
 }
-
 RegexpMatch.prototype.invert = function () {
     return new RegexpNotMatch(this.pattern, this.expression);
 };
-
 RegexpMatch.prototype.assert = function () {
     return assertTrue(this.toString());
 };
-
 RegexpMatch.prototype.verify = function () {
     return verifyTrue(this.toString());
 };
-
 function RegexpNotMatch(pattern, expression) {
     this.pattern = pattern;
     this.expression = expression;
     this.negative = true;
 }
-
 RegexpNotMatch.prototype.invert = function () {
     return new RegexpMatch(this.pattern, this.expression);
 };
-
 RegexpNotMatch.prototype.toString = function () {
     return notOperator() + RegexpMatch.prototype.toString.call(this);
 };
-
 RegexpNotMatch.prototype.assert = function () {
     return assertFalse(this.invert());
 };
-
 RegexpNotMatch.prototype.verify = function () {
     return verifyFalse(this.invert());
 };
-
 function seleniumEquals(type, pattern, expression) {
     if (type == 'String[]') {
         return seleniumEquals('String', pattern.replace(/\\,/g, ','), joinExpression(expression));
-    } else if (type == 'String' && pattern.match(/^regexp:/)) {
+    }
+    else if (type == 'String' && pattern.match(/^regexp:/)) {
         return new RegexpMatch(pattern.substring(7), expression);
-    } else if (type == 'String' && pattern.match(/^regex:/)) {
+    }
+    else if (type == 'String' && pattern.match(/^regex:/)) {
         return new RegexpMatch(pattern.substring(6), expression);
-    } else if (type == 'String' && (pattern.match(/^glob:/) || pattern.match(/[\*\?]/))) {
+    }
+    else if (type == 'String' && (pattern.match(/^glob:/) || pattern.match(/[\*\?]/))) {
         pattern = pattern.replace(/^glob:/, '');
         pattern = pattern.replace(/([\]\[\\\{\}\$\(\).])/g, "\\$1");
         pattern = pattern.replace(/\?/g, "[\\s\\S]");
         pattern = pattern.replace(/\*/g, "[\\s\\S]*");
         return new RegexpMatch("^" + pattern + "$", expression);
-    } else {
+    }
+    else {
         pattern = pattern.replace(/^exact:/, '');
         return new Equals(xlateValue(type, pattern), expression);
     }
 }
-
 function concatString(array) {
-    return array.filter(function (e) {
-        return e;
-    }).join(" + ");
+    return array.filter(function (e) { return e; }).join(" + ");
 }
-
 function toArgumentList(array) {
     return array.join(", ");
 }
-
 // function keyVariable(key) {
 //   return variableName(key);
 // }
 app.sendKeysMaping = {};
-
 function xlateKeyVariable(variable) {
     var r;
     if ((r = /^KEY_(.+)$/.exec(variable))) {
@@ -362,7 +335,6 @@ function xlateKeyVariable(variable) {
     }
     return null;
 }
-
 function xlateArgument(value, type) {
     value = value.replace(/^\s+/, '');
     value = value.replace(/\s+$/, '');
@@ -380,7 +352,8 @@ function xlateArgument(value, type) {
         }
         parts.push(string(prefix + js));
         return new CallSelenium("getEval", [concatString(parts)]);
-    } else if ((r = /\$\{/.exec(value))) {
+    }
+    else if ((r = /\$\{/.exec(value))) {
         var regexp = /\$\{(.*?)\}/g;
         var lastIndex = 0;
         while (r2 = regexp.exec(value)) {
@@ -391,7 +364,8 @@ function xlateArgument(value, type) {
                 }
                 parts.push(key ? key : variableName(r2[1]));
                 lastIndex = regexp.lastIndex;
-            } else if (r2[1] == "nbsp") {
+            }
+            else if (r2[1] == "nbsp") {
                 if (r2.index - lastIndex > 0) {
                     parts.push(string(value.substring(lastIndex, r2.index)));
                 }
@@ -403,25 +377,25 @@ function xlateArgument(value, type) {
             parts.push(string(value.substring(lastIndex, value.length)));
         }
         return (type && type.toLowerCase() == 'args') ? toArgumentList(parts) : concatString(parts);
-    } else if (type && type.toLowerCase() == 'number') {
+    }
+    else if (type && type.toLowerCase() == 'number') {
         return value;
-    } else {
+    }
+    else {
         return string(value);
     }
 }
-
 function xlateArrayElement(value) {
     return value.replace(/\\(.)/g, "$1");
 }
-
 function xlateValue(type, value) {
     if (type == 'String[]') {
         return array(parseArray(value));
-    } else {
+    }
+    else {
         return xlateArgument(value, type);
     }
 }
-
 function parseArray(value) {
     var start = 0;
     var list = [];
@@ -429,36 +403,34 @@ function parseArray(value) {
         if (value.charAt(i) == ',') {
             list.push(xlateArrayElement(value.substring(start, i)));
             start = i + 1;
-        } else if (value.charAt(i) == '\\') {
+        }
+        else if (value.charAt(i) == '\\') {
             i++;
         }
     }
     list.push(xlateArrayElement(value.substring(start, value.length)));
     return list;
 }
-
 function addDeclaredVar(variable) {
     if (app.declaredVars == null) {
         app.declaredVars = {};
     }
     app.declaredVars[variable] = true;
 }
-
 function newVariable(prefix, index) {
     if (index == null)
         index = 1;
     if (app.declaredVars && app.declaredVars[prefix + index]) {
         return newVariable(prefix, index + 1);
-    } else {
+    }
+    else {
         addDeclaredVar(prefix + index);
         return prefix + index;
     }
 }
-
 function variableName(value) {
     return value;
 }
-
 function string(value) {
     if (value != null) {
         //value = value.replace(/^\s+/, '');
@@ -468,25 +440,26 @@ function string(value) {
         value = value.replace(/\r/g, '\\r');
         value = value.replace(/\n/g, '\\n');
         return '"' + value + '"';
-    } else {
+    }
+    else {
         return '""';
     }
 }
-
 var CallSelenium = function (message, args, rawArgs) {
     this.message = message;
     if (args) {
         this.args = args;
-    } else {
+    }
+    else {
         this.args = [];
     }
     if (rawArgs) {
         this.rawArgs = rawArgs;
-    } else {
+    }
+    else {
         this.rawArgs = [];
     }
 };
-
 CallSelenium.prototype.invert = function () {
     var call = new CallSelenium(this.message);
     call.args = this.args;
@@ -494,7 +467,6 @@ CallSelenium.prototype.invert = function () {
     call.negative = !this.negative;
     return call;
 };
-
 CallSelenium.prototype.toString = function () {
     log.info('Processing ' + this.message);
     if (this.message == 'waitForPageToLoad') {
@@ -513,15 +485,16 @@ CallSelenium.prototype.toString = function () {
             result += notOperator();
         }
         result += codeBlock;
-    } else {
+    }
+    else {
+        //unsupported
         throw 'ERROR: Unsupported command [' + this.message + ' | ' + (this.rawArgs.length > 0 && this.rawArgs[0] ? this.rawArgs[0] : '') + ' | ' + (this.rawArgs.length > 1 && this.rawArgs[1] ? this.rawArgs[1] : '') + ']';
     }
     return result;
 };
-
 function formatCommand(command) {
     var line = null;
-    try  {
+    try {
         var call;
         var i;
         var eq;
@@ -536,43 +509,52 @@ function formatCommand(command) {
                 }
                 var extraArg = command.getParameterAt(def.params.length);
                 if (def.name.match(/^is/)) {
-                    if (command.command.match(/^assert/) || (app.assertOrVerifyFailureOnNext && command.command.match(/^verify/))) {
+                    if (command.command.match(/^assert/) ||
+                        (app.assertOrVerifyFailureOnNext && command.command.match(/^verify/))) {
                         line = (def.negative ? assertFalse : assertTrue)(call);
-                    } else if (command.command.match(/^verify/)) {
+                    }
+                    else if (command.command.match(/^verify/)) {
                         line = (def.negative ? verifyFalse : verifyTrue)(call);
-                    } else if (command.command.match(/^store/)) {
+                    }
+                    else if (command.command.match(/^store/)) {
                         addDeclaredVar(extraArg);
                         line = statement(assignToVariable('boolean', extraArg, call));
-                    } else if (command.command.match(/^waitFor/)) {
+                    }
+                    else if (command.command.match(/^waitFor/)) {
                         line = waitFor(def.negative ? call.invert() : call);
                     }
-                } else {
+                }
+                else {
                     if (command.command.match(/^(verify|assert)/)) {
                         eq = seleniumEquals(def.returnType, extraArg, call);
                         if (def.negative)
                             eq = eq.invert();
                         method = (!app.assertOrVerifyFailureOnNext && command.command.match(/^verify/)) ? 'verify' : 'assert';
                         line = eq[method]();
-                    } else if (command.command.match(/^store/)) {
+                    }
+                    else if (command.command.match(/^store/)) {
                         addDeclaredVar(extraArg);
                         line = statement(assignToVariable(def.returnType, extraArg, call));
-                    } else if (command.command.match(/^waitFor/)) {
+                    }
+                    else if (command.command.match(/^waitFor/)) {
                         eq = seleniumEquals(def.returnType, extraArg, call);
                         if (def.negative)
                             eq = eq.invert();
                         line = waitFor(eq);
                     }
                 }
-            } else if ('pause' == command.command) {
+            }
+            else if ('pause' == command.command) {
                 line = pause(command.target);
-            } else if (app.echo && 'echo' == command.command) {
+            }
+            else if (app.echo && 'echo' == command.command) {
                 line = echo(command.target);
-            } else if ('store' == command.command) {
+            }
+            else if ('store' == command.command) {
                 addDeclaredVar(command.value);
                 line = statement(assignToVariable('String', command.value, xlateArgument(command.target)));
-                // } else if (app.set && command.command.match(/^set/)) {
-                //   line = set(command.command, command.target);
-            } else if (command.command.match(/^(assert|verify)Selected$/)) {
+            }
+            else if (command.command.match(/^(assert|verify)Selected$/)) {
                 var optionLocator = command.value;
                 var flavor = 'Label';
                 var value = optionLocator;
@@ -589,18 +571,21 @@ function formatCommand(command) {
                 call.args.push(xlateArgument(command.target));
                 eq = seleniumEquals('String', value, call);
                 line = statement(eq[method]());
-            } else if (def) {
+            }
+            else if (def) {
                 if (def.name.match(/^(assert|verify)(Error|Failure)OnNext$/)) {
                     app.assertOrVerifyFailureOnNext = true;
                     app.assertFailureOnNext = def.name.match(/^assert/);
                     app.verifyFailureOnNext = def.name.match(/^verify/);
-                } else {
+                }
+                else {
                     call = new CallSelenium(def.name);
                     if ("open" == def.name && options.urlSuffix && !command.target.match(/^\w+:\/\//)) {
                         // urlSuffix is used to translate core-based test
                         call.rawArgs.push(options.urlSuffix + command.target);
                         call.args.push(xlateArgument(options.urlSuffix + command.target));
-                    } else {
+                    }
+                    else {
                         for (i = 0; i < def.params.length; i++) {
                             call.rawArgs.push(command.getParameterAt(i));
                             call.args.push(xlateArgument(command.getParameterAt(i)));
@@ -608,14 +593,15 @@ function formatCommand(command) {
                     }
                     line = statement(call, command);
                 }
-            } else {
+            }
+            else {
                 app.log.info("unknown command: <" + command.command + ">");
                 throw 'unknown command [' + command.command + ']';
             }
         }
-    } catch (e) {
+    }
+    catch (e) {
         app.log.error("Caught exception: [" + e + "]");
-
         // TODO
         //    var call = new CallSelenium(command.command);
         //    if ((command.target != null && command.target.length > 0)
@@ -636,21 +622,19 @@ function formatCommand(command) {
         app.assertFailureOnNext = false;
         app.verifyFailureOnNext = false;
     }
-
     //TODO: convert array to newline separated string -> if(array) return array.join"\n"
     if (command.type == 'command' && options.showSelenese && options.showSelenese == 'true') {
         if (command.remapped) {
             line = formatComment(new Comment(command.remapped.command + ' | ' + command.remapped.target + ' | ' + command.remapped.value)) + "\n" + line;
-        } else {
+        }
+        else {
             line = formatComment(new Comment(command.command + ' | ' + command.target + ' | ' + command.value)) + "\n" + line;
         }
     }
     return line;
 }
-
 app.remoteControl = true;
 app.playable = false;
-
 function parse_locator(locator) {
     var result = locator.match(/^([A-Za-z]+)=.+/);
     if (result) {
@@ -660,12 +644,10 @@ function parse_locator(locator) {
     }
     return { type: 'implicit', string: locator };
 }
-
 var SeleniumWebDriverAdaptor = function (rawArgs) {
     this.rawArgs = rawArgs;
     this.negative = false;
 };
-
 // Returns locator.type and locator.string
 SeleniumWebDriverAdaptor.prototype._elementLocator = function (sel1Locator) {
     var locator = parse_locator(sel1Locator);
@@ -700,7 +682,6 @@ SeleniumWebDriverAdaptor.prototype._elementLocator = function (sel1Locator) {
     }
     throw 'Error: unknown strategy [' + locator.type + '] for locator [' + sel1Locator + ']';
 };
-
 // Returns locator.elementLocator and locator.attributeName
 SeleniumWebDriverAdaptor.prototype._attributeLocator = function (sel1Locator) {
     var attributePos = sel1Locator.lastIndexOf("@");
@@ -708,18 +689,15 @@ SeleniumWebDriverAdaptor.prototype._attributeLocator = function (sel1Locator) {
     var attributeName = sel1Locator.slice(attributePos + 1);
     return { elementLocator: elementLocator, attributeName: attributeName };
 };
-
 SeleniumWebDriverAdaptor.prototype._selectLocator = function (sel1Locator) {
     //Figure out which strategy to use
     var locator = { type: 'label', string: sel1Locator };
-
     // If there is a locator prefix, use the specified strategy
     var result = sel1Locator.match(/^([a-zA-Z]+)=(.*)/);
     if (result) {
         locator.type = result[1];
         locator.string = result[2];
     }
-
     //alert(locatorType + ' [' + locatorValue + ']');
     if (locator.type == 'index') {
         return locator;
@@ -732,41 +710,39 @@ SeleniumWebDriverAdaptor.prototype._selectLocator = function (sel1Locator) {
     }
     throw 'Error: unknown or unsupported strategy [' + locator.type + '] for locator [' + sel1Locator + ']';
 };
-
 // Returns an object with a toString method
 SeleniumWebDriverAdaptor.SimpleExpression = function (expressionString) {
     this.str = expressionString;
 };
-
 SeleniumWebDriverAdaptor.SimpleExpression.prototype.toString = function () {
     return this.str;
 };
-
 //helper method to simplify the ifCondition
 SeleniumWebDriverAdaptor.ifCondition = function (conditionString, stmtString) {
     return ifCondition(new SeleniumWebDriverAdaptor.SimpleExpression(conditionString), function () {
         return statement(new SeleniumWebDriverAdaptor.SimpleExpression(stmtString)) + "\n";
     });
 };
-
 SeleniumWebDriverAdaptor.prototype.check = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     var webElement = driver.findElement(locator.type, locator.string);
     return SeleniumWebDriverAdaptor.ifCondition(notOperator() + webElement.isSelected(), indents(1) + webElement.click());
 };
-
 SeleniumWebDriverAdaptor.prototype.click = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).click();
 };
-
 SeleniumWebDriverAdaptor.prototype.close = function () {
     var driver = new WDAPI.Driver();
     return driver.close();
 };
-
+SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function () {
+    var driver = new WDAPI.Driver();
+    var fileName = this.rawArgs[0];
+    return driver.captureEntirePageScreenshot(fileName);
+};
 SeleniumWebDriverAdaptor.prototype.getAttribute = function (attributeLocator) {
     var attrLocator = this._attributeLocator(this.rawArgs[0]);
     var locator = this._elementLocator(attrLocator.elementLocator);
@@ -774,205 +750,169 @@ SeleniumWebDriverAdaptor.prototype.getAttribute = function (attributeLocator) {
     var webElement = driver.findElement(locator.type, locator.string);
     return webElement.getAttribute(attrLocator.attributeName);
 };
-
 SeleniumWebDriverAdaptor.prototype.getBodyText = function () {
     var driver = new WDAPI.Driver();
     return driver.findElement('tag_name', 'BODY').getText();
 };
-
 SeleniumWebDriverAdaptor.prototype.getCssCount = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElements(locator.type, locator.string).getSize();
 };
-
 SeleniumWebDriverAdaptor.prototype.getLocation = function () {
     var driver = new WDAPI.Driver();
     return driver.getCurrentUrl();
 };
-
 SeleniumWebDriverAdaptor.prototype.getText = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).getText();
 };
-
 SeleniumWebDriverAdaptor.prototype.getTitle = function () {
     var driver = new WDAPI.Driver();
     return driver.getTitle();
 };
-
 SeleniumWebDriverAdaptor.prototype.getAlert = function () {
     var driver = new WDAPI.Driver();
     return driver.getAlert();
 };
-
 SeleniumWebDriverAdaptor.prototype.isAlertPresent = function () {
     return WDAPI.Utils.isAlertPresent();
 };
-
 SeleniumWebDriverAdaptor.prototype.getConfirmation = function () {
     var driver = new WDAPI.Driver();
     return driver.getAlert();
 };
-
 SeleniumWebDriverAdaptor.prototype.isConfirmationPresent = function () {
     return WDAPI.Utils.isAlertPresent();
 };
-
 SeleniumWebDriverAdaptor.prototype.chooseOkOnNextConfirmation = function () {
     var driver = new WDAPI.Driver();
     return driver.chooseOkOnNextConfirmation();
 };
-
 SeleniumWebDriverAdaptor.prototype.chooseCancelOnNextConfirmation = function () {
     var driver = new WDAPI.Driver();
     return driver.chooseCancelOnNextConfirmation();
 };
-
 SeleniumWebDriverAdaptor.prototype.getValue = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).getAttribute('value');
 };
-
 SeleniumWebDriverAdaptor.prototype.getXpathCount = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElements(locator.type, locator.string).getSize();
 };
-
 SeleniumWebDriverAdaptor.prototype.goBack = function () {
     var driver = new WDAPI.Driver();
     return driver.back();
 };
-
 SeleniumWebDriverAdaptor.prototype.isChecked = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).isSelected();
 };
-
 SeleniumWebDriverAdaptor.prototype.isElementPresent = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
-
     //var driver = new WDAPI.Driver();
     //TODO: enough to just find element, but since this is an accessor, we will need to make a not null comparison
     //return driver.findElement(locator.type, locator.string);
     return WDAPI.Utils.isElementPresent(locator.type, locator.string);
 };
-
 SeleniumWebDriverAdaptor.prototype.isVisible = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).isDisplayed();
 };
-
 SeleniumWebDriverAdaptor.prototype.open = function (url) {
     //TODO process the relative and absolute urls
     var absUrl = xlateArgument(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.get(absUrl);
 };
-
 SeleniumWebDriverAdaptor.prototype.refresh = function () {
     var driver = new WDAPI.Driver();
     return driver.refresh();
 };
-
 SeleniumWebDriverAdaptor.prototype.submit = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).submit();
 };
-
 SeleniumWebDriverAdaptor.prototype.type = function (elementLocator, text) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     var webElement = driver.findElement(locator.type, locator.string);
     return statement(new SeleniumWebDriverAdaptor.SimpleExpression(webElement.clear())) + "\n" + webElement.sendKeys(this.rawArgs[1]);
 };
-
 SeleniumWebDriverAdaptor.prototype.sendKeys = function (elementLocator, text) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).sendKeys(this.rawArgs[1]);
 };
-
 SeleniumWebDriverAdaptor.prototype.uncheck = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     var webElement = driver.findElement(locator.type, locator.string);
     return SeleniumWebDriverAdaptor.ifCondition(webElement.isSelected(), indents(1) + webElement.click());
 };
-
 SeleniumWebDriverAdaptor.prototype.select = function (elementLocator, label) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).select(this._selectLocator(this.rawArgs[1]));
 };
-
 SeleniumWebDriverAdaptor.prototype.getEval = function (script) {
     var driver = new WDAPI.Driver();
     return driver.eval(this.rawArgs[0]);
 };
-
 var WDAPI = function () {
 };
-
 /*
-* Formatter for Selenium 2 / WebDriver JavaScript client.
-*/
+ * Formatter for Selenium 2 / WebDriver JavaScript client.
+ */
 function useSeparateEqualsForArray() {
     return true;
 }
-
 function testClassName(testName) {
     return testName.split(/[^0-9A-Za-z]+/).map(function (x) {
         return capitalize(x);
     }).join('');
 }
-
 function testMethodName(testName) {
     return "test" + testClassName(testName);
 }
-
 function nonBreakingSpace() {
     return "\"\\u00a0\"";
 }
-
 function array(value) {
     return JSON.stringify(value);
 }
-
 Equals.prototype.toString = function () {
     return this.e1.toString() + " == " + this.e2.toString();
 };
-
 Equals.prototype.assert = function () {
-    return "assert.equal(" + this.e1.toString() + ", " + this.e2.toString() + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + " + this.e2.toString() + ");";
+    return "assert.equal(" + this.e1.toString() + ", " + this.e2.toString()
+        + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
+        + this.e2.toString() + ");";
 };
-
 Equals.prototype.verify = function () {
     return verify(this.assert());
 };
-
 NotEquals.prototype.toString = function () {
     return this.e1.toString() + " != " + this.e2.toString();
 };
-
 NotEquals.prototype.assert = function () {
-    return "assert.notEqual(" + this.e1.toString() + ", " + this.e2.toString() + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + " + this.e2.toString() + ");";
+    return "assert.notEqual(" + this.e1.toString() + ", " + this.e2.toString()
+        + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
+        + this.e2.toString() + ");";
 };
-
 NotEquals.prototype.verify = function () {
     return verify(this.assert());
 };
-
 function joinExpression(expression) {
     return expression.toString() + ".join(',')";
 }
-
 function statement(expression, command) {
     var s = expression.toString();
     if (s.length == 0) {
@@ -980,65 +920,62 @@ function statement(expression, command) {
     }
     return s + ';';
 }
-
 function assignToVariable(type, variable, expression) {
-    return "/* @type " + type + " */\r\nvar " + variable + " = " + expression.toString();
+    return "/* @type " + type + " */\r\nvar " +
+        variable + " = " + expression.toString();
 }
-
 function ifCondition(expression, callback) {
     return "if (" + expression.toString() + ") {\n" + callback() + "}";
 }
-
 function assertTrue(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", true" + ", 'Assertion error: Expected: true, Actual:' + " + expression.toString() + ");";
+    return "assert.strictEqual(" + expression.toString() + ", true"
+        + ", 'Assertion error: Expected: true, Actual:' + "
+        + expression.toString() + ");";
 }
-
 function assertFalse(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", false" + ", 'Assertion error: Expected: false, Actual: + ' " + expression.toString() + ");";
+    return "assert.strictEqual(" + expression.toString() + ", false"
+        + ", 'Assertion error: Expected: false, Actual: ' + "
+        + expression.toString() + ");";
 }
-
 function verify(statement) {
-    return "try {\n" + indents(1) + statement + "\n" + "} catch (e) {\n" + indents(1) + "verificationErrors && verificationErrors.push(e.toString());\n" + "}";
+    return "try {\n" +
+        indents(1) + statement + "\n" +
+        "} catch (e) {\n" +
+        indents(1) + "verificationErrors && verificationErrors.push(e.toString());\n" +
+        "}";
 }
-
 function verifyTrue(expression) {
     return verify(assertTrue(expression));
 }
-
 function verifyFalse(expression) {
     return verify(assertFalse(expression));
 }
-
 RegexpMatch.prototype.toString = function () {
     return this.expression + ".match(" + string(this.pattern) + ")";
 };
-
 function waitFor(expression) {
-    return "waitFor(browser, function(browser){\n" + (expression.setup ? indents(1) + expression.setup() + "\n" : "") + indents(1) + "return " + expression.toString() + ";\n" + indents(0) + "}, 30000);\n";
+    return "waitFor(browser, function(browser){\n"
+        + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
+        + indents(1) + "return " + expression.toString() + ";\n"
+        + indents(0) + "}, 30000);\n";
 }
-
 function assertOrVerifyFailure(line, isAssert) {
     return "assert.throws(" + line + ");";
 }
-
 function pause(milliseconds) {
     return "browser.sleep(" + parseInt(milliseconds, 10) + ");";
 }
-
 function echo(message) {
     return "console.log(" + xlateArgument(message) + ");";
 }
-
 function formatComment(comment) {
     return comment.comment.replace(/.+/mg, function (str) {
         return "/* " + str + " */";
     });
 }
-
 function keyVariable(key) {
     return "Keys." + key;
 }
-
 app.sendKeysMaping = {
     BKSP: "BACK_SPACE",
     BACKSPACE: "BACK_SPACE",
@@ -1115,41 +1052,44 @@ app.sendKeysMaping = {
     META: "META",
     COMMAND: "COMMAND"
 };
-
 // not implemented, edit late // fish
 /**
-* Returns a string representing the suite for this formatter language.
-*
-* @param testSuite  the suite to format
-* @param filename   the file the formatted suite will be saved as
-*/
+ * Returns a string representing the suite for this formatter language.
+ *
+ * @param testSuite  the suite to format
+ * @param filename   the file the formatted suite will be saved as
+ */
 /*function formatSuite(testSuite, filename) {
-var suiteClass = /^(\w+)/.exec(filename)[1];
-suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
-var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
-for (var i = 0; i < testSuite.tests.length; ++i) {
-var testClass = testSuite.tests[i].getTitle();
-formattedSuite += suiteClass + ".tests['" + testClass + "'] = require('./" + testClass + ".js');\n";
-}
-formattedSuite += "\n"
-+ indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n"
-+ indents(1) + "var webdriver = require('selenium-webdriver');\n"
-+ indents(1) + "\n"
-+ indents(1) + "var driver = new webdriver.Builder().\n"
-+ indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n"
-+ indents(2) + "build();\n"
-+ indents(1) + 'var baseUrl = "";\n'
-+ indents(1) + "var acceptNextAlert = true;\n"
-+ indents(1) + "var verificationErrors = [];\n"
-+ indents(1) + "\n"
-+ indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
-+ indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
-+ indents(1) + "});\n"
-+ indents(0) + "}\n"
-+ indents(1) + "\n"
-+ indents(0) + "module.exports = " + suiteClass + ";\n"
-+ indents(0) + "//" + suiteClass + ".run();";
-return formattedSuite;
+  var suiteClass = /^(\w+)/.exec(filename)[1];
+  suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
+
+  var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
+
+  for (var i = 0; i < testSuite.tests.length; ++i) {
+    var testClass = testSuite.tests[i].getTitle();
+    formattedSuite += suiteClass + ".tests['" + testClass + "'] = require('./" + testClass + ".js');\n";
+  }
+
+  formattedSuite += "\n"
+    + indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n"
+    + indents(1) + "var webdriver = require('selenium-webdriver');\n"
+    + indents(1) + "\n"
+    + indents(1) + "var driver = new webdriver.Builder().\n"
+    + indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n"
+    + indents(2) + "build();\n"
+    + indents(1) + 'var baseUrl = "";\n'
+    + indents(1) + "var acceptNextAlert = true;\n"
+    + indents(1) + "var verificationErrors = [];\n"
+    + indents(1) + "\n"
+    + indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
+    + indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
+    + indents(1) + "});\n"
+    + indents(0) + "}\n"
+    + indents(1) + "\n"
+    + indents(0) + "module.exports = " + suiteClass + ";\n"
+    + indents(0) + "//" + suiteClass + ".run();";
+
+  return formattedSuite;
 }*/
 options = {
     indent: '4',
@@ -1157,46 +1097,43 @@ options = {
     showSelenese: 'false',
     defaultExtension: "js"
 };
-
 function defaultExtension() {
     return options.defaultExtension;
 }
-
-options.header = "module.exports = function ${methodName} (browser, lbParam, verificationErrors)  {\n\n" + indents(1) + "if (!lbParam) lbParam = {vuSn: 1};\n" + indents(1) + "var assert = require('assert');\n" + indents(1) + 'var baseUrl = "${baseURL}";\n' + indents(1) + "var acceptNextAlert = true;\n";
-
+options.header = "module.exports = function ${methodName} (browser, lbParam, verificationErrors)  {\n\n"
+    + indents(1) + "if (!lbParam) lbParam = {vuSn: 1};\n"
+    + indents(1) + "var assert = require('assert');\n"
+    + indents(1) + 'var baseUrl = "${baseURL}";\n'
+    + indents(1) + "var acceptNextAlert = true;\n";
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname + "/selenium-utils.js", "utf-8");
-
 options.footer = "\n};\n\n" + ideFunc;
-
 /* no used in node, but should be used in selenium-ide, obsoleted
 app.configForm =
-'<description>Header</description>' +
-'<textbox id="options_header" multiline="true" flex="1" rows="4"/>' +
-'<description>Footer</description>' +
-'<textbox id="options_footer" multiline="true" flex="1" rows="4"/>' +
-'<description>Indent</description>' +
-'<menulist id="options_indent"><menupopup>' +
-'<menuitem label="Tab" value="tab"/>' +
-'<menuitem label="1 space" value="1"/>' +
-'<menuitem label="2 spaces" value="2"/>' +
-'<menuitem label="3 spaces" value="3"/>' +
-'<menuitem label="4 spaces" value="4"/>' +
-'<menuitem label="5 spaces" value="5"/>' +
-'<menuitem label="6 spaces" value="6"/>' +
-'<menuitem label="7 spaces" value="7"/>' +
-'<menuitem label="8 spaces" value="8"/>' +
-'</menupopup></menulist>' +
-'<checkbox id="options_showSelenese" label="Show Selenese"/>';*/
+        '<description>Header</description>' +
+        '<textbox id="options_header" multiline="true" flex="1" rows="4"/>' +
+        '<description>Footer</description>' +
+        '<textbox id="options_footer" multiline="true" flex="1" rows="4"/>' +
+        '<description>Indent</description>' +
+        '<menulist id="options_indent"><menupopup>' +
+        '<menuitem label="Tab" value="tab"/>' +
+        '<menuitem label="1 space" value="1"/>' +
+        '<menuitem label="2 spaces" value="2"/>' +
+        '<menuitem label="3 spaces" value="3"/>' +
+        '<menuitem label="4 spaces" value="4"/>' +
+        '<menuitem label="5 spaces" value="5"/>' +
+        '<menuitem label="6 spaces" value="6"/>' +
+        '<menuitem label="7 spaces" value="7"/>' +
+        '<menuitem label="8 spaces" value="8"/>' +
+        '</menupopup></menulist>' +
+        '<checkbox id="options_showSelenese" label="Show Selenese"/>';*/
 app.name = "Node (wd-sync)";
 app.testcaseExtension = ".js";
 app.suiteExtension = ".js";
 app.webdriver = true;
-
 WDAPI.Driver = function () {
     this.ref = 'browser';
 };
-
 WDAPI.Driver.searchContext = function (locatorType, locator) {
     var locatorString = xlateArgument(locator);
     switch (locatorType) {
@@ -1215,95 +1152,87 @@ WDAPI.Driver.searchContext = function (locatorType, locator) {
     }
     throw 'Error: unknown strategy [' + locatorType + '] for locator [' + locator + ']';
 };
-
 WDAPI.Driver.prototype.back = function () {
     return this.ref + ".back()";
 };
-
 WDAPI.Driver.prototype.close = function () {
     return this.ref + ".close()";
 };
-
+WDAPI.Driver.prototype.captureEntirePageScreenshot = function (fileName) {
+    var screenshotFolder = 'screenshots/' + app.testCaseName;
+    if (typeof fileName === 'undefined' || fileName === '') {
+        fileName = ('00000' + (++app.screenshotsCount)).slice(-5);
+    }
+    else {
+        // Strip any folders and file extension that might be given with the file name from the test case:
+        fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+    }
+    return 'createFolderPath("' + screenshotFolder + '");\n'
+        + indents(0) + this.ref + ".saveScreenshot(\"" + screenshotFolder + '/' + fileName + ".png\")";
+};
 WDAPI.Driver.prototype.findElement = function (locatorType, locator) {
     return new WDAPI.Element(WDAPI.Driver.searchContext(locatorType, locator));
 };
-
 WDAPI.Driver.prototype.findElements = function (locatorType, locator) {
     return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element", "elements"));
 };
-
 WDAPI.Driver.prototype.getCurrentUrl = function () {
     return this.ref + ".url()";
 };
-
 WDAPI.Driver.prototype.get = function (url) {
     if (url.length > 1 && (url.substring(1, 8) == "http://" || url.substring(1, 9) == "https://")) {
         return this.ref + ".get(" + url + ")";
-    } else {
+    }
+    else {
         return this.ref + ".get(addUrl(baseUrl, " + url + "))";
     }
 };
-
 WDAPI.Driver.prototype.getTitle = function () {
     return this.ref + ".title()";
 };
-
 WDAPI.Driver.prototype.getAlert = function () {
-    return "closeAlertAndGetItsText(browser, acceptNextAlert);\n" + "acceptNextAlert = true";
+    return "closeAlertAndGetItsText(browser, acceptNextAlert);\n"
+        + "acceptNextAlert = true";
 };
-
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function () {
     return "acceptNextAlert = true";
 };
-
 WDAPI.Driver.prototype.chooseCancelOnNextConfirmation = function () {
     return "acceptNextAlert = false";
 };
-
 WDAPI.Driver.prototype.refresh = function () {
     return this.ref + ".refresh()";
 };
-
 WDAPI.Driver.prototype.eval = function (script) {
     return this.ref + ".safeEval(" + script + ")";
 };
-
 WDAPI.Element = function (ref) {
     this.ref = ref;
 };
-
 WDAPI.Element.prototype.clear = function () {
     return this.ref + ".clear()";
 };
-
 WDAPI.Element.prototype.click = function () {
     return this.ref + ".click()";
 };
-
 WDAPI.Element.prototype.getAttribute = function (attributeName) {
     return this.ref + ".getAttribute(" + xlateArgument(attributeName) + ")";
 };
-
 WDAPI.Element.prototype.getText = function () {
     return this.ref + ".text()";
 };
-
 WDAPI.Element.prototype.isDisplayed = function () {
     return this.ref + ".isDisplayed()";
 };
-
 WDAPI.Element.prototype.isSelected = function () {
     return this.ref + ".isSelected()";
 };
-
 WDAPI.Element.prototype.sendKeys = function (text) {
     return this.ref + ".sendKeys(" + xlateArgument(text) + ")";
 };
-
 WDAPI.Element.prototype.submit = function () {
     return this.ref + ".submit()";
 };
-
 WDAPI.Element.prototype.select = function (selectLocator) {
     if (selectLocator.type == 'index') {
         return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
@@ -1313,31 +1242,23 @@ WDAPI.Element.prototype.select = function (selectLocator) {
     }
     return this.ref + ".elementByXPath('option[text()=" + xlateArgument(selectLocator.string) + "][1]').click()";
 };
-
 WDAPI.ElementList = function (ref) {
     this.ref = ref;
 };
-
 WDAPI.ElementList.prototype.getItem = function (index) {
     return this.ref + "[" + index + "]";
 };
-
 WDAPI.ElementList.prototype.getSize = function () {
     return this.ref + ".length";
 };
-
 WDAPI.ElementList.prototype.isEmpty = function () {
     return "isEmptyArray(" + this.ref + ")";
 };
-
 WDAPI.Utils = function () {
 };
-
 WDAPI.Utils.isElementPresent = function (how, what) {
     return WDAPI.Driver.searchContext(how, what).replace("element", "hasElement");
 };
-
 WDAPI.Utils.isAlertPresent = function () {
     return "isAlertPresent(browser)";
 };
-//# sourceMappingURL=JavascriptFormatter.js.map

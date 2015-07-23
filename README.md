@@ -1,50 +1,72 @@
-A small tools to convert 'selenium-IDE' html test cases into javascript test cases with <a href='https://github.com/sebv/node-wd-sync'>Node wd-sync</a> :
+## selenium-html-js-converter
 
-Attention: only support test case html now, test suit html is not supported yet.
+A small tools to convert 'selenium-IDE' HTML test cases into javascript test cases with [wd-sync](https://github.com/sebv/node-wd-sync).
 
-Install
-```
-$npm install selenium-html-js-converter
-```
-Usage
+Attention: Only supports test case HTML at the moment, test suite HTML is not supported yet.
 
+## Install
+
+```sh
+$ npm install selenium-html-js-converter
 ```
+
+## Usage
+
+```js
 var converter = require("selenium-html-js-converter");
 
-converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile);
+converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile[, testCaseName]);
 ```
 
-Before your run the javascript, you need install <a href='https://github.com/sebv/node-wd-sync'>Node wd-sync</a>, which are used in the test case.
-```
-$npm install wd-sync
+Before you run the javascript, you need to install [wd-sync](https://github.com/sebv/node-wd-sync), which is used in the test case.
+
+```sh
+    $ npm install wd-sync
 ```
 
-To run the javascript :
-```
+## To run the javascript
+
+```js
 var wdSync = require('wd-sync');
 
-var client = wdSync.remote("127.0.0.1",8910) //phantomjs default wd port
-    , browser = client.browser
-    , sync = client.sync;
+var client  = wdSync.remote('127.0.0.1', 8910); // phantomjs default wd port
+var browser = client.browser;
+var sync    = client.sync;
 
-var test1 = require("./OutJsFile");
+var test1 = require('./OutJsFile');
 
 sync(function(){
-  browser.init({browserName: 'phantomjs'});
-  test1(browser);
-  browser.quit();
+    browser.init({ browserName: 'phantomjs' });
+    test1(browser);
+    browser.quit();
 });
 ```
-Ref to <a href='https://github.com/sebv/node-wd-sync/blob/master/doc/jsonwire-full-mapping.md'>wd-sync api</a>
 
-If your want to run the previous javascript success, you should start a <a href='http://phantomjs.org'>phantomjs</a> webdriver server in another process.
+Refer to [wd-sync API](https://github.com/sebv/node-wd-sync/blob/master/doc/jsonwire-full-mapping.md).
+
+If you want to run the javascript example above successfully, you should start a [phantomjs](http://phantomjs.org) webdriver server in another process.
+
+```sh
+$ phantomjs --wd
 ```
-phantomjs --wd
+
+## API Usage
+
+```js
+convertHtmlFileToJsFile(filePath, filePath[, testCaseName]) => void;
+convertHtmlStrToJsFile(htmlStr, filePath[, testCaseName])   => void;
+convertHtmlFileToJsStr(filePath[, testCaseName])            => string;
+convertHtmlStrToJsStr(htmlStr[, testCaseName])              => string;
 ```
-Api Usage:
+
+The test case name parameter is optional, but, if given, it is used to place any screenshots that may be taken during a test case. Screenshots are saved as `./screenshots/<testCaseName>/<fileName specified in the HTML test case or an incrementing number>.png`.
+
+Paths from the screenshot file name in the HTML test case itself are stripped, but you can include paths in the testCaseName if you want your screenshots ordered in folders, e.g.
+
+```js
+convertHtmlFileToJsFile('test.html', 'test.js', 'backend/user management/adding and deleting');
 ```
-convertHtmlFileToJsFile(filePath, filePath) => void;
-convertHtmlStrToJsFile(htmlStr, filePath) => void;
-convertHtmlFileToJsStr(filePath, testCaseName?) => string;
-convertHtmlStrToJsStr(htmlStr, testCaseName?) => string;
-```
+
+This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test.
+
+Note that kwArgs aren't supported by wd in screenshots (see [Selenium reference docs](http://release.seleniumhq.org/selenium-core/1.0.1/reference.html)) so they will be ignored.

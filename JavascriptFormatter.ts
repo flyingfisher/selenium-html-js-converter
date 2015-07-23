@@ -14,7 +14,8 @@ var options:any = {};
  * Format TestCase and return the source.
  *
  * @param testCase TestCase to format
- * @param name The name of the test case, if any. It may be used to embed title into the source.
+ * @param name     The name of the test case, if any. It may be used to embed title into the source.
+ *                 It will also be used to place screenshot files.
  */
 export function format(testCase, name) {
     app.log.info("formatting testCase: " + name);
@@ -22,6 +23,9 @@ export function format(testCase, name) {
     var header = "";
     var footer = "";
     app.commandCharIndex = 0;
+
+    app.testCaseName = name || '';
+    app.screenshotsCount = 0;
 
     header = formatHeader(testCase);
 
@@ -769,6 +773,13 @@ SeleniumWebDriverAdaptor.prototype.close = function() {
   return driver.close();
 };
 
+SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
+  var driver = new WDAPI.Driver();
+  var fileName = this.rawArgs[0];
+
+  return driver.captureEntirePageScreenshot(fileName);
+};
+
 SeleniumWebDriverAdaptor.prototype.getAttribute = function(attributeLocator) {
   var attrLocator = this._attributeLocator(this.rawArgs[0]);
   var locator = this._elementLocator(attrLocator.elementLocator);
@@ -1256,6 +1267,20 @@ WDAPI.Driver.prototype.back = function() {
 
 WDAPI.Driver.prototype.close = function() {
   return this.ref + ".close()";
+};
+
+WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
+  var screenshotFolder = 'screenshots/' + app.testCaseName;
+
+  if (typeof fileName === 'undefined' || fileName === '') {
+    fileName = ('00000' + (++app.screenshotsCount)).slice(-5);
+  } else {
+    // Strip any folders and file extension that might be given with the file name from the test case:
+    fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+  }
+
+  return 'createFolderPath("' + screenshotFolder + '");\n'
+      + indents(0) + this.ref + ".saveScreenshot(\"" + screenshotFolder + '/' + fileName  + ".png\")";
 };
 
 WDAPI.Driver.prototype.findElement = function(locatorType, locator) {

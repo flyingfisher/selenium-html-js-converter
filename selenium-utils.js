@@ -69,3 +69,20 @@ function waitFor(browser, checkFunc, timeout, pollFreq){
 
     return val;
 }
+
+function createFolderPath(path) {
+    var fs = require('fs');
+    var folders = path.split(/[/\\]+/);
+    path = '';
+
+    while (folders.length) {
+        /* This works for both absolute and relative paths, as split on an absolute path will have resulted in an array with the first bit empty. Safe for absolute Windows paths as well: */
+        path += folders.shift() + '/';
+
+        if (!fs.existsSync(path)) {
+            fs.mkdirSync(path);
+        } else if (!fs.statSync(path).isDirectory()) {
+            throw new Error("Cannot create directory '" + path + "'. File of same name already exists.");
+        }
+    }
+}
