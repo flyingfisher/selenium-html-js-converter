@@ -90,6 +90,10 @@ function convertText(command, converter) {
 	}
 }
 
+exports.setLogger = function (logger) {
+	log = logger;
+};
+
 /**
  * Parse source and update TestCase. Throw an exception if any error occurs.
  *
@@ -142,8 +146,8 @@ exports.parse = function parse(testCase, source) {
 	}
 	if (commands.length > 0) {
 		testCase.footer = doc.substring(lastIndex);
-		// log.debug("header=" + testCase.header);
-		// log.debug("footer=" + testCase.footer);
+		log.debug("header=" + testCase.header);
+		log.debug("footer=" + testCase.footer);
 		if (testCase.header &&
 		    /<link\s+rel="selenium\.base"\s+href="(.*)"/.test(testCase.header)) {
 		    testCase.baseURL = decodeURI(RegExp.$1);
@@ -162,8 +166,8 @@ exports.parse = function parse(testCase, source) {
 			if (templateVars["commands"]) {
 				testCase.header = doc.substring(0, templateVars["commands"][1]);
 				testCase.footer = doc.substring(templateVars["commands"][1]);
-				// log.debug("header=" + testCase.header);
-				// log.debug("footer=" + testCase.footer);
+				log.debug("header=" + testCase.header);
+				log.debug("footer=" + testCase.footer);
 			}
 			testCase.commands = commands;
 		}else {

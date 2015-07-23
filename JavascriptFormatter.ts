@@ -41,6 +41,10 @@ export function format(testCase, name) {
     return result;
 }
 
+export function setLogger(logger) {
+  log = logger;
+}
+
 function filterForRemoteControl(originalCommands) {
     var commands = [];
     for (var i = 0; i < originalCommands.length; i++) {

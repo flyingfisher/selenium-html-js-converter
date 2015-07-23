@@ -32,6 +32,10 @@ function format(testCase, name) {
     return result;
 }
 exports.format = format;
+function setLogger(logger) {
+    log = logger;
+}
+exports.setLogger = setLogger;
 function filterForRemoteControl(originalCommands) {
     var commands = [];
     for (var i = 0; i < originalCommands.length; i++) {
@@ -1166,7 +1170,7 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function (fileName) {
     }
     else {
         // Strip any folders and file extension that might be given with the file name from the test case:
-        fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+        fileName = fileName.replace(/.+[/\\]([^/\\]+)$/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
     }
     return 'var screenshotFolder = options.screenshotFolder ? options.screenshotFolder : "' + screenshotFolder + '";\n'
         + indents(0) + 'var screenshotFile = "' + fileName + '.png";\n'

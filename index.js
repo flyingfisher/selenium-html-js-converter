@@ -34,6 +34,12 @@ function mkdirP(path) {
   }
 }
 
+exports.setLogger=function (logger){
+    var formatter = require(__dirname+"/JavascriptFormatter");
+    formatter.setLogger(logger);
+    testCaseParser.setLogger(logger);
+};
+
 exports.convertHtmlStrToJsStr=function (htmlStr, testCaseName){
     if (!htmlStr)
         return;
