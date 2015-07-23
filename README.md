@@ -69,4 +69,14 @@ convertHtmlFileToJsFile('test.html', 'test.js', 'backend/user management/adding 
 
 This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test.
 
+The screenshot folder can be changed at runtime by passing it to the test function, e.g. using the example from before:
+
+```js
+sync(function(){
+    browser.init({ browserName: 'phantomjs' });
+    test1(browser, null, null, { screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting' });
+    browser.quit();
+});
+```
+
 Note that kwArgs aren't supported by wd in screenshots (see [Selenium reference docs](http://release.seleniumhq.org/selenium-core/1.0.1/reference.html)) so they will be ignored.
