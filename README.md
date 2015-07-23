@@ -2,8 +2,6 @@
 
 A small tools to convert 'selenium-IDE' HTML test cases into javascript test cases with [wd-sync](https://github.com/sebv/node-wd-sync).
 
-Attention: Only supports test case HTML at the moment, test suite HTML is not supported yet.
-
 ## Install
 
 ```sh
@@ -57,7 +55,9 @@ convertHtmlFileToJsFile(filePath, filePath[, testCaseName]) => void;
 convertHtmlStrToJsFile(htmlStr, filePath[, testCaseName])   => void;
 convertHtmlFileToJsStr(filePath[, testCaseName])            => string;
 convertHtmlStrToJsStr(htmlStr[, testCaseName])              => string;
+convertHtmlSuiteFileToJsFiles(htmlFile[, outputFolder])   	=> void;
 ```
+Suite file conversion puts each converted file in the specified output folder. Any missing folders in the output path will be created. For test cases that exist in subfolders relative to the suite file, the subfolders are appended to the corresponding js file's target path. If you do not specify an output folder, js files will be created next to the html input file.
 
 The test case name parameter is optional, but, if given, it is used to place any screenshots that may be taken during a test case. Screenshots are saved as `./screenshots/<testCaseName>/<fileName specified in the HTML test case or an incrementing number>.png`.
 

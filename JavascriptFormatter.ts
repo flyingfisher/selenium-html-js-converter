@@ -1277,7 +1277,7 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
     fileName = ('00000' + (++app.screenshotsCount)).slice(-5);
   } else {
     // Strip any folders and file extension that might be given with the file name from the test case:
-    fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+    fileName = fileName.replace(/.+[/\\]([^/\\]+)$/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
   }
 
   return 'var screenshotFolder = options.screenshotFolder ? options.screenshotFolder : "' + screenshotFolder + '";\n'
