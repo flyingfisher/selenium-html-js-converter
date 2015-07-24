@@ -36,6 +36,14 @@ function mkdirP(path) {
 
 exports.setLogger=function (logger){
     var formatter = require(__dirname+"/JavascriptFormatter");
+    var _ = require("lodash");
+    logger = _.defaults(logger, {
+        log   : function () {},
+        debug : function () {},
+        info  : function () {},
+        warn  : console.warn,
+        error : console.error
+    });
     formatter.setLogger(logger);
     testCaseParser.setLogger(logger);
 };
