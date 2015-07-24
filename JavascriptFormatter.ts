@@ -18,7 +18,7 @@ var options:any = {};
  *                 It will also be used to place screenshot files.
  */
 export function format(testCase, name) {
-    app.log.info("formatting testCase: " + name);
+    app.log.info("Formatting testCase: " + name);
     var result = '';
     var header = "";
     var footer = "";
@@ -39,6 +39,10 @@ export function format(testCase, name) {
     result += footer;
     testCase.formatLocal(app.name).footer = footer;
     return result;
+}
+
+export function setLogger(logger) {
+  log = logger;
 }
 
 function filterForRemoteControl(originalCommands) {
@@ -616,12 +620,12 @@ function formatCommand(command) {
           line = statement(call, command);
         }
       } else {
-        app.log.info("unknown command: <" + command.command + ">");
-        throw 'unknown command [' + command.command + ']';
+        app.log.info("Unknown command: <" + command.command + ">");
+        throw 'Unknown command [' + command.command + ']';
       }
     }
   } catch(e) {
-    app.log.error("Caught exception: [" + e + "]");
+    app.log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
     // TODO
 //    var call = new CallSelenium(command.command);
 //    if ((command.target != null && command.target.length > 0)
@@ -1026,7 +1030,7 @@ function verify(statement) {
   return "try {\n" +
       indents(1) + statement + "\n" +
       "} catch (e) {\n" +
-      indents(1) + "verificationErrors && verificationErrors.push(e.toString());\n" +
+      indents(1) + "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
       "}";
 }
 
@@ -1202,8 +1206,9 @@ function defaultExtension() {
   return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, lbParam, verificationErrors)  {\n\n"
-    + indents(1) + "if (!lbParam) lbParam = {vuSn: 1};\n"
+options.header = "module.exports = function ${methodName} (browser, options)  {\n\n"
+    + indents(1) + "if (!options) options = {};\n"
+    + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
     + indents(1) + "var assert = require('assert');\n"
     + indents(1) + 'var baseUrl = "${baseURL}";\n'
     + indents(1) + "var acceptNextAlert = true;\n";
@@ -1276,11 +1281,13 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
     fileName = ('00000' + (++app.screenshotsCount)).slice(-5);
   } else {
     // Strip any folders and file extension that might be given with the file name from the test case:
-    fileName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
+    fileName = fileName.replace(/.+[/\\]([^/\\]+)$/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
   }
 
-  return 'createFolderPath("' + screenshotFolder + '");\n'
-      + indents(0) + this.ref + ".saveScreenshot(\"" + screenshotFolder + '/' + fileName  + ".png\")";
+  return 'var screenshotFolder = options.screenshotFolder ? options.screenshotFolder : "' + screenshotFolder + '";\n'
+      + indents(0) + 'var screenshotFile = "' + fileName + '.png";\n'
+      + indents(0) + 'createFolderPath(screenshotFolder);\n'
+      + indents(0) + this.ref + '.saveScreenshot(screenshotFolder + "/" + screenshotFile)';
 };
 
 WDAPI.Driver.prototype.findElement = function(locatorType, locator) {

@@ -10,6 +10,36 @@ xmlParser.parseString(fs.readFileSync(__dirname+"/iedoc-core.xml","utf-8"), func
     Command.apiDocuments = new Array(result);
 });
 
+/**
+ * Same as mkdir -p <path>
+ *
+ * @throws on collisions with files and missing permissions.
+ *
+ * @param  {string} path  The path to create. Windows and *NIX paths accepted, as well as absolute and relative ones.
+ * @return {void}
+ */
+function mkdirP(path) {
+  var folders = path.split(/[/\\]+/);
+  path = '';
+
+  while (folders.length) {
+    /* This works for both absolute and relative paths, as split on an absolute path will have resulted in an array with the first bit empty. Safe for absolute Windows paths as well: */
+    path += folders.shift() + '/';
+
+    if (!fs.existsSync(path)) {
+      fs.mkdirSync(path);
+    } else if (!fs.statSync(path).isDirectory()) {
+        throw new Error("Cannot create directory '" + path + "'. File of same name already exists.");
+    }
+  }
+}
+
+exports.setLogger=function (logger){
+    var formatter = require(__dirname+"/JavascriptFormatter");
+    formatter.setLogger(logger);
+    testCaseParser.setLogger(logger);
+};
+
 exports.convertHtmlStrToJsStr=function (htmlStr, testCaseName){
     if (!htmlStr)
         return;
@@ -60,4 +90,30 @@ exports.convertHtmlStrToJsFile=function (htmlStr, jsFile, testCaseName){
     var JsStr = exports.convertHtmlStrToJsStr(htmlStr, testCaseName);
 
     fs.writeFileSync(jsFile, JsStr, "utf-8");
+};
+
+exports.convertHtmlSuiteFileToJsFiles=function (htmlFile, outputDir){
+    if (!htmlFile)
+        return;
+
+    var htmlStr = fs.readFileSync(htmlFile,"utf-8");
+
+    var suiteLocation = '.';
+
+    if (htmlFile.match(/[/\\]/))
+        suiteLocation = htmlFile.replace(/(.+)[/\\][^/\\]+$/, '$1');
+
+    if (!outputDir)
+        outputDir = suiteLocation;
+
+    htmlStr.match(/<a href="([^"]+)"/g).forEach(function (element) {
+        var fileName = element.replace(/<a href="([^"]+)"/, '$1');
+        var baseName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.[^.]+$/i, '');
+        var targetDir = outputDir + '/' + fileName.replace(/(.+)[/\\][^/\\]+/, '$1');
+        var targetFile = targetDir + '/' + baseName+'.js';
+
+        mkdirP(targetDir);
+
+        exports.convertHtmlFileToJsFile(suiteLocation + '/' + fileName, targetFile, baseName);
+    });
 };
