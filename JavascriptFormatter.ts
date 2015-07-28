@@ -1015,15 +1015,15 @@ function ifCondition(expression, callback) {
 }
 
 function assertTrue(expression) {
-  return "assert.strictEqual(" + expression.toString() + ", true"
-    + ", 'Assertion error: Expected: true, Actual:' + "
-    + expression.toString() + ");";
+  return "assert.strictEqual(!!" + expression.toString() + ", true"
+    + ", 'Assertion error: Expected: true, got: ' + "
+    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
 }
 
 function assertFalse(expression) {
-  return "assert.strictEqual(" + expression.toString() + ", false"
-    + ", 'Assertion error: Expected: false, Actual: ' + "
-    + expression.toString() + ");";
+  return "assert.strictEqual(!!" + expression.toString() + ", false"
+    + ", 'Assertion error: Expected: false, got: ' + "
+    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
 }
 
 function verify(statement) {
