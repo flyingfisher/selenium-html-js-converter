@@ -49,22 +49,25 @@ function startsWith(str,startStr){
     return firstIndex === 0;
 }
 
-function waitFor(browser, checkFunc, timeout, pollFreq){
+function waitFor(browser, checkFunc, expression, timeout, pollFreq){
     var val;
-    if (!timeout)
-        timeout = 30000;
-    if (!pollFreq)
+
+    var timeLeft = timeout;
+
+    if (!pollFreq) {
         pollFreq = 200;
-    while(!val) {
+    }
+
+    while (!val) {
         val = checkFunc(browser);
         if (val)
             break;
-        if (timeout < 0) {
-            require("assert").throws("Timeout");
+        if (timeLeft < 0) {
+            throw new Error('Timed out after ' + timeout + ' msecs waiting for expression: ' + expression);
             break;
         }
         browser.sleep(pollFreq);
-        timeout -= pollFreq;
+        timeLeft -= pollFreq;
     }
 
     return val;

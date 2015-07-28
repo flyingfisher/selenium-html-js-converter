@@ -44,7 +44,7 @@ function filterForRemoteControl(originalCommands) {
             var c1 = c.createCopy();
             c1.command = c.command.replace(/AndWait$/, '');
             commands.push(c1);
-            commands.push(new Command("waitForPageToLoad", options['global.timeout'] || "30000"));
+            commands.push(new Command("waitForPageToLoad", "options.timeout || " + (options['global.timeout'] || "30000")));
         }
         else {
             commands.push(c);
@@ -981,7 +981,8 @@ function waitFor(expression) {
     return "waitFor(browser, function(browser){\n"
         + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
         + indents(1) + "return " + expression.toString() + ";\n"
-        + indents(0) + "}, 30000);\n";
+        + indents(0) + "}, '" + expression.toString().replace("'", "\\'")
+        + "', options.timeout || " + (options['global.timeout'] || "30000") + "); \n";
 }
 function assertOrVerifyFailure(line, isAssert) {
     return "assert.throws(" + line + ");";
