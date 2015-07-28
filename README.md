@@ -68,7 +68,7 @@ Paths from the screenshot file name in the HTML test case itself are stripped, b
 convertHtmlFileToJsFile('test.html', 'test.js', 'backend/user management/adding and deleting');
 ```
 
-This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test (see [Run-time options](###screenshotFolder) on how to override this when running the tests).
+This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test (see [Run-time options](#screenshotfolder) on how to override this when running the tests).
 
 Note that kwArgs aren't supported by wd in screenshots (see [Selenium reference docs](http://release.seleniumhq.org/selenium-core/1.0.1/reference.html)) so they will be ignored.
 
