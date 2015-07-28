@@ -80,6 +80,7 @@ function formatCommands(commands) {
     for (var i = 0; i < commands.length; i++) {
         var line = null;
         var command = commands[i];
+        app.currentlyParsingCommand = command;
         if (command.type == 'line') {
             line = command.line;
         } else if (command.type == 'command') {
@@ -98,6 +99,7 @@ function formatCommands(commands) {
             result += line;
             app.commandCharIndex += line.length;
         }
+        app.previouslyParsedCommand = command;
     }
     return result;
 }
@@ -777,10 +779,30 @@ SeleniumWebDriverAdaptor.prototype.close = function() {
   return driver.close();
 };
 
+SeleniumWebDriverAdaptor.prototype.openWindow = function() {
+  var driver = new WDAPI.Driver();
+  var url = this.rawArgs[0];
+  var name = this.rawArgs[1];
+  return driver.openWindow(url, name);
+};
+
+SeleniumWebDriverAdaptor.prototype.selectWindow = function() {
+  var driver = new WDAPI.Driver();
+  var name = this.rawArgs[0];
+  return driver.selectWindow(name);
+};
+
+/* wd does not support the windowFocus command. window(), called by selectWindow, both selects and focuses a window, so if the previously parsed command was selectWindow, we should be good. */
+SeleniumWebDriverAdaptor.prototype.windowFocus = function() {
+  if (app.previouslyParsedCommand.command !== 'selectWindow') {
+    throw new Error('windowFocus is not supported by wd.');
+  }
+  return "/* Ignored windowFocus command, as window focusing is handled implicitly in the previous wd command. */";
+};
+
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
   var driver = new WDAPI.Driver();
   var fileName = this.rawArgs[0];
-
   return driver.captureEntirePageScreenshot(fileName);
 };
 
@@ -1271,7 +1293,19 @@ WDAPI.Driver.prototype.back = function() {
 };
 
 WDAPI.Driver.prototype.close = function() {
-  return this.ref + ".close()";
+  return this.ref + ".close();\n"
+      + indents(0) + "refocusWindow(" + this.ref + ")";
+};
+
+WDAPI.Driver.prototype.openWindow = function(url, name) {
+  url = url ? "'" + url + "'" : "null";
+  name = name ? "'" + name + "'" : "null";
+  return this.ref + ".newWindow(" + url + ", " + name + ")";
+};
+
+WDAPI.Driver.prototype.selectWindow = function(name) {
+  name = name ? "'" + name + "'" : "null";
+  return this.ref + ".window(" + name + ")";
 };
 
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {

@@ -86,3 +86,24 @@ function createFolderPath(path) {
         }
     }
 }
+
+/**
+ * Focuses the topmost window on the stack of handles in the browser.
+ *
+ * After a WdSyncClient.browser.close() wd does not automatically restore focus
+ * to the previous window on the stack, so you may execute this function to
+ * ensure that subsequent tests won't be targeting a defunct window handle.
+ *
+ * @param  {WdSyncClient.browser} browser Browser instance.
+ * @return {void}
+ */
+function refocusWindow (browser) {
+    var handles = browser.windowHandles();
+    if (handles.length) {
+        try {
+            browser.window(handles[handles.length-1]);
+        } catch (e) {
+            console.warn('Failed to automatically restore focus to most recent window after closing. Error:', e);
+        }
+    }
+}
