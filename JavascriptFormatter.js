@@ -1181,9 +1181,18 @@ WDAPI.Driver.searchContext = function (locatorType, locator) {
 WDAPI.Driver.prototype.back = function () {
     return this.ref + ".back()";
 };
+/**
+ * Closing a window is safe as long as it's a popup. Closing the main window,
+ * however, will break the browser object and prevent subsequent tests from
+ * running as the Selenium server won't have a window to run them on. In the
+ * IDE a test writer might add a close statement, and it'll work fine so long
+ * as there are more tabs to spend. We safeguard against it here.
+ */
 WDAPI.Driver.prototype.close = function () {
-    return this.ref + ".close();\n"
-        + indents(0) + "refocusWindow(" + this.ref + ")";
+    return "if (browser.windowHandles().length > 1) {\n"
+        + indents(1) + this.ref + ".close();\n"
+        + indents(1) + "refocusWindow(" + this.ref + ");\n"
+        + indents(0) + "}";
 };
 WDAPI.Driver.prototype.openWindow = function (url, name) {
     url = url ? "'" + url + "'" : "null";
