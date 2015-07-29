@@ -981,7 +981,7 @@ function waitFor(expression) {
     return "waitFor(browser, function(browser){\n"
         + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
         + indents(1) + "return " + expression.toString() + ";\n"
-        + indents(0) + "}, '" + expression.toString().replace("'", "\\'")
+        + indents(0) + "}, '" + expression.toString().replace(/'/g, "\\'")
         + "', options.timeout || " + (options['global.timeout'] || "30000") + "); \n";
 }
 function assertOrVerifyFailure(line, isAssert) {

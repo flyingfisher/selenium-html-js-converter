@@ -106,7 +106,7 @@ function refocusWindow (browser) {
         try {
             browser.window(handles[handles.length-1]);
         } catch (e) {
-            console.warn('Failed to automatically restore focus to most recent window after closing. Error:', e);
+            console.warn('Failed to automatically restore focus to topmost window on browser stack. Error:', e);
         }
     }
 }
