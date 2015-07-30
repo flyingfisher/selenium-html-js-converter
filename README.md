@@ -1,4 +1,4 @@
-## selenium-html-js-converter
+# selenium-html-js-converter
 
 A small tools to convert 'selenium-IDE' HTML test cases into javascript test cases with [wd-sync](https://github.com/sebv/node-wd-sync).
 
@@ -68,17 +68,7 @@ Paths from the screenshot file name in the HTML test case itself are stripped, b
 convertHtmlFileToJsFile('test.html', 'test.js', 'backend/user management/adding and deleting');
 ```
 
-This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test.
-
-The screenshot folder can be changed at runtime by passing it to the test function, e.g. using the example from before:
-
-```js
-sync(function(){
-    browser.init({ browserName: 'phantomjs' });
-    test1(browser, { screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting' });
-    browser.quit();
-});
-```
+This example will put screenshots in `./screenshots/backend/user management/adding and deleting/`. Any folders missing in the path will be automatically created when you run your test (see [Run-time options](#screenshotfolder) on how to override this when running the tests).
 
 Note that kwArgs aren't supported by wd in screenshots (see [Selenium reference docs](http://release.seleniumhq.org/selenium-core/1.0.1/reference.html)) so they will be ignored.
 
@@ -97,3 +87,37 @@ converter.setLogger({
     error : console.error
 });
 ```
+
+## Run-time options
+
+You may redefine some defaults and override some test settings at run-time by defining them via properties in the second, and optional, options argument hash when executing a test case.
+
+### screenshotFolder
+
+The screenshot folder can be changed at runtime by passing it to the test function, e.g. using the example from before:
+
+```js
+sync(function(){
+    browser.init({ browserName: 'phantomjs' });
+    test1(browser, {
+        screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting'
+    });
+    browser.quit();
+});
+```
+
+### timeout
+
+The default timeout for wait operations, e.g. waitForElementPresent, is 30 seconds. You may change this by passing the desired timeout in miliseconds as an integer, e.g.
+
+```js
+sync(function(){
+    browser.init({ browserName: 'phantomjs' });
+    test1(browser, {
+        screenshotFolder: 'screenshots/firefox/backend/user management/adding and deleting',
+        timeout: 5000
+    });
+    browser.quit();
+});
+```
+

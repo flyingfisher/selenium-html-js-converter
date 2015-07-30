@@ -14,7 +14,7 @@ var options = {};
  *                 It will also be used to place screenshot files.
  */
 function format(testCase, name) {
-    app.log.info("formatting testCase: " + name);
+    app.log.info("Formatting testCase: " + name);
     var result = '';
     var header = "";
     var footer = "";
@@ -44,7 +44,7 @@ function filterForRemoteControl(originalCommands) {
             var c1 = c.createCopy();
             c1.command = c.command.replace(/AndWait$/, '');
             commands.push(c1);
-            commands.push(new Command("waitForPageToLoad", options['global.timeout'] || "30000"));
+            commands.push(new Command("waitForPageToLoad", "options.timeout || " + (options['global.timeout'] || "30000")));
         }
         else {
             commands.push(c);
@@ -70,6 +70,7 @@ function formatCommands(commands) {
     for (var i = 0; i < commands.length; i++) {
         var line = null;
         var command = commands[i];
+        app.currentlyParsingCommand = command;
         if (command.type == 'line') {
             line = command.line;
         }
@@ -92,6 +93,7 @@ function formatCommands(commands) {
             result += line;
             app.commandCharIndex += line.length;
         }
+        app.previouslyParsedCommand = command;
     }
     return result;
 }
@@ -599,13 +601,13 @@ function formatCommand(command) {
                 }
             }
             else {
-                app.log.info("unknown command: <" + command.command + ">");
-                throw 'unknown command [' + command.command + ']';
+                app.log.info("Unknown command: <" + command.command + ">");
+                throw 'Unknown command [' + command.command + ']';
             }
         }
     }
     catch (e) {
-        app.log.error("Caught exception: [" + e + "]");
+        app.log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
         // TODO
         //    var call = new CallSelenium(command.command);
         //    if ((command.target != null && command.target.length > 0)
@@ -741,6 +743,24 @@ SeleniumWebDriverAdaptor.prototype.click = function (elementLocator) {
 SeleniumWebDriverAdaptor.prototype.close = function () {
     var driver = new WDAPI.Driver();
     return driver.close();
+};
+SeleniumWebDriverAdaptor.prototype.openWindow = function () {
+    var driver = new WDAPI.Driver();
+    var url = this.rawArgs[0];
+    var name = this.rawArgs[1];
+    return driver.openWindow(url, name);
+};
+SeleniumWebDriverAdaptor.prototype.selectWindow = function () {
+    var driver = new WDAPI.Driver();
+    var name = this.rawArgs[0];
+    return driver.selectWindow(name);
+};
+/* wd does not support the windowFocus command. window(), called by selectWindow, both selects and focuses a window, so if the previously parsed command was selectWindow, we should be good. */
+SeleniumWebDriverAdaptor.prototype.windowFocus = function () {
+    if (app.previouslyParsedCommand.command !== 'selectWindow') {
+        throw new Error('windowFocus is not supported by wd.');
+    }
+    return "/* Ignored windowFocus command, as window focusing is handled implicitly in the previous wd command. */";
 };
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function () {
     var driver = new WDAPI.Driver();
@@ -932,14 +952,14 @@ function ifCondition(expression, callback) {
     return "if (" + expression.toString() + ") {\n" + callback() + "}";
 }
 function assertTrue(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", true"
-        + ", 'Assertion error: Expected: true, Actual:' + "
-        + expression.toString() + ");";
+    return "assert.strictEqual(!!" + expression.toString() + ", true"
+        + ", 'Assertion error: Expected: true, got: ' + "
+        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
 }
 function assertFalse(expression) {
-    return "assert.strictEqual(" + expression.toString() + ", false"
-        + ", 'Assertion error: Expected: false, Actual: ' + "
-        + expression.toString() + ");";
+    return "assert.strictEqual(!!" + expression.toString() + ", false"
+        + ", 'Assertion error: Expected: false, got: ' + "
+        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
 }
 function verify(statement) {
     return "try {\n" +
@@ -961,7 +981,8 @@ function waitFor(expression) {
     return "waitFor(browser, function(browser){\n"
         + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
         + indents(1) + "return " + expression.toString() + ";\n"
-        + indents(0) + "}, 30000);\n";
+        + indents(0) + "}, '" + expression.toString().replace(/'/g, "\\'")
+        + "', options.timeout || " + (options['global.timeout'] || "30000") + "); \n";
 }
 function assertOrVerifyFailure(line, isAssert) {
     return "assert.throws(" + line + ");";
@@ -1160,8 +1181,27 @@ WDAPI.Driver.searchContext = function (locatorType, locator) {
 WDAPI.Driver.prototype.back = function () {
     return this.ref + ".back()";
 };
+/**
+ * Closing a window is safe as long as it's a popup. Closing the main window,
+ * however, will break the browser object and prevent subsequent tests from
+ * running as the Selenium server won't have a window to run them on. In the
+ * IDE a test writer might add a close statement, and it'll work fine so long
+ * as there are more tabs to spend. We safeguard against it here.
+ */
 WDAPI.Driver.prototype.close = function () {
-    return this.ref + ".close()";
+    return "if (browser.windowHandles().length > 1) {\n"
+        + indents(1) + this.ref + ".close();\n"
+        + indents(1) + "refocusWindow(" + this.ref + ");\n"
+        + indents(0) + "}";
+};
+WDAPI.Driver.prototype.openWindow = function (url, name) {
+    url = url ? "'" + url + "'" : "null";
+    name = name ? "'" + name + "'" : "null";
+    return this.ref + ".newWindow(" + url + ", " + name + ")";
+};
+WDAPI.Driver.prototype.selectWindow = function (name) {
+    name = name ? "'" + name + "'" : "null";
+    return this.ref + ".window(" + name + ")";
 };
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function (fileName) {
     var screenshotFolder = 'screenshots/' + app.testCaseName;

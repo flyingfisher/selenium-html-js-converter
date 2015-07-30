@@ -49,22 +49,25 @@ function startsWith(str,startStr){
     return firstIndex === 0;
 }
 
-function waitFor(browser, checkFunc, timeout, pollFreq){
+function waitFor(browser, checkFunc, expression, timeout, pollFreq){
     var val;
-    if (!timeout)
-        timeout = 30000;
-    if (!pollFreq)
+
+    var timeLeft = timeout;
+
+    if (!pollFreq) {
         pollFreq = 200;
-    while(!val) {
+    }
+
+    while (!val) {
         val = checkFunc(browser);
         if (val)
             break;
-        if (timeout < 0) {
-            require("assert").throws("Timeout");
+        if (timeLeft < 0) {
+            throw new Error('Timed out after ' + timeout + ' msecs waiting for expression: ' + expression);
             break;
         }
         browser.sleep(pollFreq);
-        timeout -= pollFreq;
+        timeLeft -= pollFreq;
     }
 
     return val;
@@ -83,6 +86,27 @@ function createFolderPath(path) {
             fs.mkdirSync(path);
         } else if (!fs.statSync(path).isDirectory()) {
             throw new Error("Cannot create directory '" + path + "'. File of same name already exists.");
+        }
+    }
+}
+
+/**
+ * Focuses the topmost window on the stack of handles in the browser.
+ *
+ * After a WdSyncClient.browser.close() wd does not automatically restore focus
+ * to the previous window on the stack, so you may execute this function to
+ * ensure that subsequent tests won't be targeting a defunct window handle.
+ *
+ * @param  {WdSyncClient.browser} browser Browser instance.
+ * @return {void}
+ */
+function refocusWindow (browser) {
+    var handles = browser.windowHandles();
+    if (handles.length) {
+        try {
+            browser.window(handles[handles.length-1]);
+        } catch (e) {
+            console.warn('Failed to automatically restore focus to topmost window on browser stack. Error:', e);
         }
     }
 }
