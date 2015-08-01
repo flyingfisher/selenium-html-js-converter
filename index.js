@@ -107,7 +107,7 @@ exports.convertHtmlStrToJsFile = function (htmlStr, jsFile, options) {
             options.testCaseName = "test_" + options.testCaseName;
     }
 
-    var JsStr = exports.convertHtmlStrToJsStr(htmlStr, options.testCaseName);
+    var JsStr = exports.convertHtmlStrToJsStr(htmlStr, options);
 
     fs.writeFileSync(jsFile, JsStr, "utf-8");
 };
