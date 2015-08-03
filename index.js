@@ -34,7 +34,7 @@ function mkdirP(path) {
   }
 }
 
-exports.setLogger=function (logger){
+exports.setLogger = function (logger) {
     var formatter = require(__dirname+"/JavascriptFormatter");
     var _ = require("lodash");
     logger = _.defaults(logger, {
@@ -48,61 +48,79 @@ exports.setLogger=function (logger){
     testCaseParser.setLogger(logger);
 };
 
-exports.convertHtmlStrToJsStr=function (htmlStr, testCaseName){
+exports.convertHtmlStrToJsStr = function (htmlStr, options) {
     if (!htmlStr)
         return;
 
-    if (!testCaseName)
-        testCaseName="UntitledTest";
+    if (!options)
+        options = {};
+    else if
+        (typeof options === 'string')
+        options = { testCaseName: options };
 
-    var testCase = new TestCase(testCaseName);
-    testCaseParser.parse(testCase,htmlStr);
+    if (!options.testCaseName)
+        options.testCaseName = "UntitledTest";
+
+    var testCase = new TestCase(options.testCaseName);
+    testCaseParser.parse(testCase, htmlStr);
 
     var formatter = require(__dirname+"/JavascriptFormatter");
-    return formatter.format(testCase, testCaseName);
+    return formatter.format(testCase, options);
 };
 
-exports.convertHtmlFileToJsStr=function (htmlFile, testCaseName){
+exports.convertHtmlFileToJsStr = function (htmlFile, options) {
     if (!htmlFile)
         return;
 
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
 
-    return exports.convertHtmlStrToJsStr(htmlStr, testCaseName);
+    return exports.convertHtmlStrToJsStr(htmlStr, options);
 };
 
-exports.convertHtmlFileToJsFile=function (htmlFile, jsFile, testCaseName){
+exports.convertHtmlFileToJsFile = function (htmlFile, jsFile, options) {
     if (!htmlFile || !jsFile)
         return;
 
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
 
-    exports.convertHtmlStrToJsFile(htmlStr, jsFile, testCaseName);
+    exports.convertHtmlStrToJsFile(htmlStr, jsFile, options);
 };
 
-exports.convertHtmlToJs=exports.convertHtmlFileToJsFile; //compatible
+exports.convertHtmlToJs = exports.convertHtmlFileToJsFile; //compatible
 
-exports.convertHtmlStrToJsFile=function (htmlStr, jsFile, testCaseName){
+exports.convertHtmlStrToJsFile = function (htmlStr, jsFile, options) {
     if (!htmlStr || !jsFile)
         return;
 
-    if (!testCaseName) {
-        testCaseName = jsFile.split("/").pop().split(".")[0];
+    if (!options)
+        options = {};
+    else if
+        (typeof options === 'string')
+        options = { testCaseName: options };
 
-        testCaseName = testCaseName.replace(/[^\w_0-9]+/g,"_"); // remove unsupported alpha
+    if (!options.testCaseName) {
+        options.testCaseName = jsFile.split("/").pop().split(".")[0];
 
-        if (testCaseName.toLowerCase().indexOf("test") === -1)
-            testCaseName = "test_" + testCaseName;
+        options.testCaseName = options.testCaseName.replace(/[^\w_0-9]+/g,"_"); // remove unsupported alpha
+
+        if (options.testCaseName.toLowerCase().indexOf("test") === -1)
+            options.testCaseName = "test_" + options.testCaseName;
     }
 
-    var JsStr = exports.convertHtmlStrToJsStr(htmlStr, testCaseName);
+    var JsStr = exports.convertHtmlStrToJsStr(htmlStr, options);
 
     fs.writeFileSync(jsFile, JsStr, "utf-8");
 };
 
-exports.convertHtmlSuiteFileToJsFiles=function (htmlFile, outputDir){
+exports.convertHtmlSuiteFileToJsFiles = function (htmlFile, options) {
     if (!htmlFile)
         return;
+
+    if (!options)
+        options = {};
+    else if
+        (typeof options === 'string')
+        options = { outputDir: options };
 
     var htmlStr = fs.readFileSync(htmlFile,"utf-8");
 
@@ -111,17 +129,17 @@ exports.convertHtmlSuiteFileToJsFiles=function (htmlFile, outputDir){
     if (htmlFile.match(/[/\\]/))
         suiteLocation = htmlFile.replace(/(.+)[/\\][^/\\]+$/, '$1');
 
-    if (!outputDir)
-        outputDir = suiteLocation;
+    if (!options.outputDir)
+        options.outputDir = suiteLocation;
 
     htmlStr.match(/<a href="([^"]+)"/g).forEach(function (element) {
         var fileName = element.replace(/<a href="([^"]+)"/, '$1');
         var baseName = fileName.replace(/.+[/\\]([^/\\]+)/, '$1').replace(/\.[^.]+$/i, '');
-        var targetDir = outputDir + '/' + fileName.replace(/(.+)[/\\][^/\\]+/, '$1');
+        var targetDir = options.outputDir + '/' + fileName.replace(/(.+)[/\\][^/\\]+/, '$1');
         var targetFile = targetDir + '/' + baseName+'.js';
 
         mkdirP(targetDir);
 
-        exports.convertHtmlFileToJsFile(suiteLocation + '/' + fileName, targetFile, baseName);
+        exports.convertHtmlFileToJsFile(suiteLocation + '/' + fileName, targetFile, { testCaseName: baseName });
     });
 };
