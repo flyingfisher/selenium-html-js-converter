@@ -13,7 +13,7 @@ $ npm install selenium-html-js-converter
 ```js
 var converter = require("selenium-html-js-converter");
 
-converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile[, testCaseName]);
+converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile[, options]);
 ```
 
 Before you run the javascript, you need to install [wd-sync](https://github.com/sebv/node-wd-sync), which is used in the test case.
