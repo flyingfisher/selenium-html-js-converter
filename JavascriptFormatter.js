@@ -682,7 +682,7 @@ function formatCommand(command) {
         return '/* Selenium command: ' + command.command + '('
             + '"' + command.target + '", '
             + '"' + command.value + '") */\n'
-            + retryWrap(line) + "\n";
+            + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
     }
 }
 app.remoteControl = true;

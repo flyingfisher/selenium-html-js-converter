@@ -708,7 +708,8 @@ function formatCommand(command) {
     return '/* Selenium command: ' + command.command + '('
       + '"' + command.target + '", '
       + '"' + command.value + '") */\n'
-      + retryWrap(line) + "\n";
+      /* All commands except those already wired to wait will be wrapped in a retry block if applicable: */
+      + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
   }
 }
 
