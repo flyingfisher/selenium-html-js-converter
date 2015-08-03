@@ -1375,7 +1375,7 @@ WDAPI.Driver.prototype.close = function() {
 WDAPI.Driver.prototype.openWindow = function(url, name) {
   url = url ? "'" + url + "'" : "null";
   name = name ? "'" + name + "'" : "null";
-  return this.ref + ".newWindow(" + url + ", " + name + ")";
+  return this.ref + ".newWindow(addBaseUrl(options.baseUrl, " + url + ", options.forceBaseUrl), " + name + ")";
 };
 
 WDAPI.Driver.prototype.selectWindow = function(name) {
@@ -1413,11 +1413,7 @@ WDAPI.Driver.prototype.getCurrentUrl = function() {
 };
 
 WDAPI.Driver.prototype.get = function(url) {
-  if (url.length > 1 && (url.substring(1,8) == "http://" || url.substring(1,9) == "https://")) { // url is quoted
-    return this.ref + ".get(" + url + ")";
-  } else {
-    return this.ref + ".get(addUrl(options.baseUrl, " + url + "))";
-  }
+    return this.ref + ".get(addBaseUrl(options.baseUrl, " + url + ", options.forceBaseUrl))";
 };
 
 WDAPI.Driver.prototype.getTitle = function() {

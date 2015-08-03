@@ -23,17 +23,7 @@ function isEmptyArray (arr) {
     return !(arr && arr.length);
 }
 
-function addUrl (baseUrl, url) {
-    if (endsWith(baseUrl, url))
-        return baseUrl;
-
-    if (endsWith(baseUrl,"/") && startsWith(url,"/"))
-        return baseUrl.slice(0,-1) + url;
-
-    return baseUrl + url;
-}
-
-function endsWith (str,endStr) {
+function endsWith (str, endStr) {
     if (!endStr) return false;
 
     var lastIndex = str && str.lastIndexOf(endStr);
@@ -87,6 +77,27 @@ function createFolderPath (path) {
             throw new Error("Cannot create directory '" + path + "'. File of same name already exists.");
         }
     }
+}
+
+/**
+ * Prefix a (relative) path with a base url.
+ *
+ * If the path itself is an absolute one including a domain, it'll be returned as-is, unless force is set to true, in
+ * which case the existing domain is replaced with the base.
+ *
+ * @param  {string} base  The base url
+ * @param  {string} path  The path to prefix
+ * @param  {bool}   force If true, force prefixing even if path is an absolute url
+ * @return {string}       The prefixed url
+ */
+function addBaseUrl (base, path, force) {
+    if (path.match(/^http/)) {
+        if (force) {
+            return path.replace(/^http(s?):\/\/[^/]+/, base).replace(/([^:])\/\/+/g, '$1/');
+        }
+        return path;
+    }
+    return (base + '/' + path).replace(/([^:])\/\/+/g, '$1/');
 }
 
 /**

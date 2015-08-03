@@ -151,6 +151,10 @@ sync(function(){
 
 Changes the baseUrl for relative links. This is useful, for instance, if you test locally against a localhost version of a website, while testing with Sauce Labs against a staging server.
 
+#### forceBaseUrl
+
+Forces urls to be prefixed by the baseUrl, even when they aren't relative. Useful if you have test cases with absolute URLs and you need to force them to target a different domain. The domain part of the url will be replaced with the value of baseUrl.
+
 ## Logging
 
 selenium-html-js-converter is by default quite verbose. You may redirect logging to your own logger object by calling `.setLogger()` once imported, e.g.:
