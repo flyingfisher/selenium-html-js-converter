@@ -147,6 +147,10 @@ sync(function(){
 });
 ```
 
+#### baseUrl
+
+Changes the baseUrl for relative links. This is useful, for instance, if you test locally against a localhost version of a website, while testing with Sauce Labs against a staging server.
+
 ## Logging
 
 selenium-html-js-converter is by default quite verbose. You may redirect logging to your own logger object by calling `.setLogger()` once imported, e.g.:

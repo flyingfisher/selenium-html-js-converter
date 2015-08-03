@@ -1295,10 +1295,9 @@ options.getHeader = function() {
         + indents(1) + "if (!options) options = {};\n"
         + indents(1) + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
         + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
-        + indents(1) + "if (typeof options.timeout !== 'number') options.timeout = " + options.timeout + ";\n"
+        + indents(1) + "if (!options.baseUrl) options.baseUrl = '${baseURL}';\n"
         + indents(1) + "if (typeof options.retries !== 'number') options.retries = " + options.retries + ";\n\n"
         + indents(1) + "var assert = require('assert');\n"
-        + indents(1) + 'var baseUrl = "${baseURL}";\n'
         + indents(1) + "var acceptNextAlert = true;\n\n";
 };
 
@@ -1417,7 +1416,7 @@ WDAPI.Driver.prototype.get = function(url) {
   if (url.length > 1 && (url.substring(1,8) == "http://" || url.substring(1,9) == "https://")) { // url is quoted
     return this.ref + ".get(" + url + ")";
   } else {
-    return this.ref + ".get(addUrl(baseUrl, " + url + "))";
+    return this.ref + ".get(addUrl(options.baseUrl, " + url + "))";
   }
 };
 
