@@ -140,7 +140,6 @@ function withRetry (browser, code, retries, timeout) {
       return code();
     } catch (e) {
       err = e;
-      console.warn('A test failed. Will retry (#%d) in %d msecs ...', i+1, durations[i]);
       browser.sleep(durations[i]);
     }
   }
