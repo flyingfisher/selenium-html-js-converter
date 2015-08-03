@@ -64,6 +64,32 @@ The options argument is optional, and for backwards compatibility, it may be a s
 
 The argument is an object hash and may contain the following properties:
 
+#### General options
+
+##### timeout
+
+Sets the default timeout for waits and retries, in msecs. The default is 30,000 msecs.
+
+##### retries
+
+Sets the number of retries that should be attempted when a test fails. This may help prevent false negatives.
+
+When set, the wait between retries is calculated to fit within the `timeout` period, while increasing the wait period between retries after each failed attempt. The calculation is simple: Before the last allowed retry, there will be a wait period of `timeout/2` msecs. Before the second-to-last allowed retry, there's a wait of half of that. This halving of continues up until the first retry. The wait after the very first try is the same as the wait after the first retry. In other words, given a timeout of 1,000 msecs and a maximum of five retries, you will get pauses of `[ 32, 32, 63, 125, 250, 500 ]` msecs after each failed attempt, after which the test ultimately fails.
+
+Note that the way retrying is implemented is to wrap each test in an outer function, so it will result in slightly uglier code, e.g. this test without retrying:
+
+```js
+assert.strictEqual(!!browser.hasElementByCssSelector("[name=some-name]"), true, 'Assertion error: Expected: true, got: ' + browser.hasElementByCssSelector("[name=some-name]") + " [ Command: assertElementPresent | css=[name=some-name] ]");
+```
+
+becomes, when enabling retries:
+
+```js
+retry(browser, function () {
+    assert.strictEqual(!!browser.hasElementByCssSelector("[name=some-name]"), true, 'Assertion error: Expected: true, got: ' + browser.hasElementByCssSelector("[name=some-name]") + " [ Command: assertElementPresent | css=[name=some-name] ]");
+}, options.retries, options.timeout);
+```
+
 #### convertHtml(File|Str)ToJs(File|Str) options
 
 ##### testCaseName

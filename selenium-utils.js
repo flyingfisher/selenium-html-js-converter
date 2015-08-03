@@ -1,4 +1,4 @@
-function isAlertPresent(browser) {
+function isAlertPresent (browser) {
     try {
         browser.alertText();
         return true;
@@ -7,7 +7,7 @@ function isAlertPresent(browser) {
     }
 }
 
-function closeAlertAndGetItsText(browser, acceptNextAlert) {
+function closeAlertAndGetItsText (browser, acceptNextAlert) {
     try {
         var alertText = browser.alertText() ;
         if (acceptNextAlert) {
@@ -19,11 +19,11 @@ function closeAlertAndGetItsText(browser, acceptNextAlert) {
     } catch (ignore) {}
 }
 
-function isEmptyArray(arr){
+function isEmptyArray (arr) {
     return !(arr && arr.length);
 }
 
-function addUrl(baseUrl, url){
+function addUrl (baseUrl, url) {
     if (endsWith(baseUrl, url))
         return baseUrl;
 
@@ -33,7 +33,7 @@ function addUrl(baseUrl, url){
     return baseUrl + url;
 }
 
-function endsWith(str,endStr){
+function endsWith (str,endStr) {
     if (!endStr) return false;
 
     var lastIndex = str && str.lastIndexOf(endStr);
@@ -42,14 +42,14 @@ function endsWith(str,endStr){
     return str.length === (lastIndex + endStr.length);
 }
 
-function startsWith(str,startStr){
+function startsWith (str,startStr) {
     var firstIndex = str && str.indexOf(startStr);
     if (typeof firstIndex === "undefined")
         return false;
     return firstIndex === 0;
 }
 
-function waitFor(browser, checkFunc, expression, timeout, pollFreq){
+function waitFor (browser, checkFunc, expression, timeout, pollFreq) {
     var val;
 
     var timeLeft = timeout;
@@ -64,7 +64,6 @@ function waitFor(browser, checkFunc, expression, timeout, pollFreq){
             break;
         if (timeLeft < 0) {
             throw new Error('Timed out after ' + timeout + ' msecs waiting for expression: ' + expression);
-            break;
         }
         browser.sleep(pollFreq);
         timeLeft -= pollFreq;
@@ -73,7 +72,7 @@ function waitFor(browser, checkFunc, expression, timeout, pollFreq){
     return val;
 }
 
-function createFolderPath(path) {
+function createFolderPath (path) {
     var fs = require('fs');
     var folders = path.split(/[/\\]+/);
     path = '';
@@ -109,4 +108,42 @@ function refocusWindow (browser) {
             console.warn('Failed to automatically restore focus to topmost window on browser stack. Error:', e);
         }
     }
+}
+
+/**
+ * Tries to execute an Error throwing function, and if an error is thrown, one
+ * or more retries are attempted until <timeout> msecs have passed.
+ *
+ * Pauses between retries are increasing in length. The pause before the final
+ * retry will be half the total timeout. The pause before the second-to-last
+ * will be half of the last one's, and so forth. The first attempt will have the
+ * same pause as that of the first retry.
+ *
+ * @param  {WdSyncClient.browser} browser Browser instance
+ * @param  {function}             code    The code to execute
+ * @param  {number}               retries The max number of retries
+ * @param  {number}               timeout The max number of msecs to keep trying
+ * @return {mixed}                Whatever the code block returns
+ */
+function withRetry (browser, code, retries, timeout) {
+  var durations = [timeout];
+  var err;
+
+  while (retries) {
+    durations[0] = Math.ceil(durations[0]/2);
+    durations.unshift(durations[0]);
+    --retries;
+  }
+
+  for (var i = 0; i < durations.length; ++i) {
+    try {
+      return code();
+    } catch (e) {
+      err = e;
+      console.warn('A test failed. Will retry (#%d) in %d msecs ...', i+1, durations[i]);
+      browser.sleep(durations[i]);
+    }
+  }
+
+  throw(err);
 }

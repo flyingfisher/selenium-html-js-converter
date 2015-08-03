@@ -13,19 +13,44 @@ var options:any = {};
 /**
  * Format TestCase and return the source.
  *
- * @param testCase TestCase to format
- * @param name     The name of the test case, if any. It may be used to embed title into the source.
- *                 It will also be used to place screenshot files.
+ * @param {string} testCase  TestCase to format
+ * @param {object} userOptions
+ *        {string} .testCaseName
+ *                          The name of the test case. It will be used to embed
+ *                          title into the source, and write screenshot files.
+ *                          Default: 'Untitled'
+ *        {number} .timeout
+ *                          Default number of msecs before timing out in test
+ *                          cases with timeouts, and when creating auto-retrying
+ *                          test cases.
+ *                          Default: 30,000
+ *        {number} .retries
+ *                          How many times to retry test cases when they fail.
+ *                          If retries are enabled, each generated test case
+ *                          will be wrapped in a retry function.
+ *                          Default: 0 (disabled)
+ *
+ * @return {string}         The formatted test case.
  */
-export function format(testCase, name) {
-    app.log.info("Formatting testCase: " + name);
+export function format(testCase, userOptions) {
+    if (!userOptions || typeof userOptions !== 'object')
+        userOptions = {};
+
+    app.log.info("Formatting testCase: " + userOptions.testCaseName);
+
     var result = '';
     var header = "";
     var footer = "";
+
     app.commandCharIndex = 0;
 
-    app.testCaseName = name || '';
+    app.testCaseName = userOptions.testCaseName || '';
     app.screenshotsCount = 0;
+
+    options.testCaseName = userOptions.testCaseName || 'Untitled';
+    options.timeout = typeof userOptions.timeout === 'number' ? userOptions.timeout : 30000;
+    options.retries = typeof userOptions.retries === 'number' ? userOptions.retries : 0;
+    options.screenshotFolder = 'screenshots/' + app.testCaseName;
 
     header = formatHeader(testCase);
 
@@ -45,6 +70,28 @@ export function setLogger(logger) {
   log = logger;
 }
 
+/**
+ * Generates a variable name for storing temporary values in generated scripts.
+ */
+function getTempVarName() {
+  if (!app.tmpVarsCount)
+    app.tmpVarsCount = 1;
+
+  return "var" + app.tmpVarsCount++;
+}
+
+function retryWrap (code) {
+    if (options.retries) {
+        var wrapped = "withRetry(browser, function () {\n";
+        code.split('\n').forEach(function(line) {
+            wrapped += indents(1) + line + '\n';
+        });
+        wrapped += indents(0) + "}, options.retries, options.timeout);";
+        return wrapped;
+    }
+    return code;
+}
+
 function filterForRemoteControl(originalCommands) {
     var commands = [];
     for (var i = 0; i < originalCommands.length; i++) {
@@ -53,7 +100,7 @@ function filterForRemoteControl(originalCommands) {
             var c1 = c.createCopy();
             c1.command = c.command.replace(/AndWait$/, '');
             commands.push(c1);
-            commands.push(new Command("waitForPageToLoad", "options.timeout || " + (options['global.timeout'] || "30000")));
+            commands.push(new Command("waitForPageToLoad", "options.timeout"));
         } else {
             commands.push(c);
         }
@@ -212,7 +259,7 @@ function formatHeader(testCase) {
   var methodName = testMethodName(className.replace(/Test$/i, "").replace(/^Test/i, "").replace(/^[A-Z]/, function(str) {
     return str.toLowerCase();
   }));
-  var header = (options.getHeader ? options.getHeader() : options.header).
+  var header = (options.getHeader()).
       replace(/\$\{className\}/g, className).
       replace(/\$\{methodName\}/g, methodName).
       replace(/\$\{baseURL\}/g, testCase.getBaseURL()).
@@ -656,7 +703,13 @@ function formatCommand(command) {
       line = formatComment(new Comment(command.command + ' | ' + command.target + ' | ' + command.value)) + "\n" + line;
     }
   }
-  return line;
+  if (line) {
+    /* For debugging test failures, add a comment above the code to tell which Selenium command it corresponds to. */
+    return '/* Selenium command: ' + command.command + '('
+      + '"' + command.target + '", '
+      + '"' + command.value + '") */\n'
+      + retryWrap(line) + "\n";
+  }
 }
 
 app.remoteControl = true;
@@ -797,7 +850,8 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function() {
   if (app.previouslyParsedCommand.command !== 'selectWindow') {
     throw new Error('windowFocus is not supported by wd.');
   }
-  return "/* Ignored windowFocus command, as window focusing is handled implicitly in the previous wd command. */";
+  /* Ignoring windowFocus command, as window focusing is handled implicitly in the previous wd command. */
+  return "";
 };
 
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
@@ -988,13 +1042,17 @@ function array(value) {
 }
 
 Equals.prototype.toString = function() {
-    return this.e1.toString() + " == " + this.e2.toString();
+    return this.e1.toString() + " === " + this.e2.toString();
 };
 
 Equals.prototype.assert = function() {
-  return "assert.equal(" + this.e1.toString() + ", " + this.e2.toString()
-    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
-    + this.e2.toString() + ");";
+  var varA = getTempVarName();
+  var varB = getTempVarName();
+  return "var " + varA + " = " + this.e1.toString() + ";\n"
+    + indents(0) + "var " + varB + " = " + this.e2.toString() + ";\n"
+    + indents(0) + "assert.equal(" + varA + ", " + varB
+    + ", 'Assertion error: Expected: ' + " + varA
+    + " + ', got: ' + " + varB + ");"
 };
 
 Equals.prototype.verify = function() {
@@ -1002,7 +1060,7 @@ Equals.prototype.verify = function() {
 };
 
 NotEquals.prototype.toString = function() {
-  return this.e1.toString() + " != " + this.e2.toString();
+  return this.e1.toString() + " !== " + this.e2.toString();
 };
 
 NotEquals.prototype.assert = function() {
@@ -1021,10 +1079,10 @@ function joinExpression(expression) {
 
 function statement(expression, command?) {
   var s = expression.toString();
-  if (s.length == 0) {
+  if (s.length === 0) {
     return null;
   }
-  return s + ';';
+  return s.substr(-1) !== ';' && s.substr(-2) !== '*/' ? s + ';' : s;
 }
 
 function assignToVariable(type, variable, expression) {
@@ -1073,11 +1131,11 @@ function waitFor(expression) {
         + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
         + indents(1) + "return " + expression.toString() + ";\n"
         + indents(0) + "}, '" + expression.toString().replace(/'/g, "\\'")
-        + "', options.timeout || " + (options['global.timeout'] || "30000") + "); \n";
+        + "', options.timeout);\n";
 }
 
 function assertOrVerifyFailure(line, isAssert) {
-  return "assert.throws(" + line + ");";
+  return "assert.throws(" + line + ")";
 }
 
 function pause(milliseconds) {
@@ -1229,12 +1287,19 @@ function defaultExtension() {
   return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, options)  {\n\n"
-    + indents(1) + "if (!options) options = {};\n"
-    + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
-    + indents(1) + "var assert = require('assert');\n"
-    + indents(1) + 'var baseUrl = "${baseURL}";\n'
-    + indents(1) + "var acceptNextAlert = true;\n";
+options.getHeader = function() {
+    return '"use strict";\n'
+        + "/* jslint node: true */\n\n"
+        + "module.exports = function ${methodName} (browser, options)  {\n\n"
+        + indents(1) + "if (!options) options = {};\n"
+        + indents(1) + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
+        + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
+        + indents(1) + "if (typeof options.timeout !== 'number') options.timeout = " + options.timeout + ";\n"
+        + indents(1) + "if (typeof options.retries !== 'number') options.retries = " + options.retries + ";\n\n"
+        + indents(1) + "var assert = require('assert');\n"
+        + indents(1) + 'var baseUrl = "${baseURL}";\n'
+        + indents(1) + "var acceptNextAlert = true;\n\n";
+};
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
@@ -1328,22 +1393,23 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
     fileName = fileName.replace(/.+[/\\]([^/\\]+)$/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
   }
 
-  return 'var screenshotFolder = options.screenshotFolder ? options.screenshotFolder : "' + screenshotFolder + '";\n'
-      + indents(0) + 'var screenshotFile = "' + fileName + '.png";\n'
-      + indents(0) + 'createFolderPath(screenshotFolder);\n'
-      + indents(0) + this.ref + '.saveScreenshot(screenshotFolder + "/" + screenshotFile)';
+  var screenshotFileVar = getTempVarName();
+
+  return 'var ' + screenshotFileVar + ' = "' + fileName + '.png";\n'
+    + indents(0) + 'createFolderPath(options.screenshotFolder);\n'
+    + indents(0) + this.ref + '.saveScreenshot(options.screenshotFolder + "/" + ' + screenshotFileVar + ')';
 };
 
 WDAPI.Driver.prototype.findElement = function(locatorType, locator) {
-  return new WDAPI.Element(WDAPI.Driver.searchContext(locatorType, locator));
+    return new WDAPI.Element(WDAPI.Driver.searchContext(locatorType, locator));
 };
 
 WDAPI.Driver.prototype.findElements = function(locatorType, locator) {
-  return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element","elements"));
+    return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element", "elements"));
 };
 
 WDAPI.Driver.prototype.getCurrentUrl = function() {
-  return this.ref + ".url()";
+    return this.ref + ".url()";
 };
 
 WDAPI.Driver.prototype.get = function(url) {
@@ -1359,8 +1425,8 @@ WDAPI.Driver.prototype.getTitle = function() {
 };
 
 WDAPI.Driver.prototype.getAlert = function() {
-    return "closeAlertAndGetItsText(browser, acceptNextAlert);\n"
-        + "acceptNextAlert = true";
+  return "closeAlertAndGetItsText(browser, acceptNextAlert);\n"
+    + "acceptNextAlert = true";
 };
 
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function() {
@@ -1376,7 +1442,7 @@ WDAPI.Driver.prototype.refresh = function() {
 };
 
 WDAPI.Driver.prototype.eval = function(script) {
-    return this.ref + ".safeEval(" + script + ")";
+  return this.ref + ".safeEval(" + script + ")";
 };
 
 WDAPI.Element = function(ref) {
@@ -1417,10 +1483,10 @@ WDAPI.Element.prototype.submit = function() {
 
 WDAPI.Element.prototype.select = function(selectLocator) {
   if (selectLocator.type == 'index') {
-      return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
+    return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
   }
   if (selectLocator.type == 'value') {
-      return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
+    return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
   }
   return this.ref + ".elementByXPath('option[text()=" + xlateArgument(selectLocator.string) + "][1]').click()";
 };
