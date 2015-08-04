@@ -1,3 +1,7 @@
+function isNumber (val) {
+    return typeof val === 'number' && !isNaN(val);
+}
+
 function isAlertPresent (browser) {
     try {
         browser.alertText();

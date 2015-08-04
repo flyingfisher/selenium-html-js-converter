@@ -1293,11 +1293,11 @@ options.getHeader = function() {
         + "/* jslint node: true */\n\n"
         + "module.exports = function ${methodName} (browser, options)  {\n\n"
         + indents(1) + "if (!options) options = {};\n"
-        + indents(1) + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
-        + indents(1) + "if (typeof options.timeout !== 'number') options.timeout = " + options.timeout + ";\n"
         + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
         + indents(1) + "if (!options.baseUrl) options.baseUrl = '${baseURL}';\n"
-        + indents(1) + "if (typeof options.retries !== 'number') options.retries = " + options.retries + ";\n\n"
+        + indents(1) + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
+        + indents(1) + "if (!isNumber(options.timeout)) options.timeout = " + options.timeout + ";\n"
+        + indents(1) + "if (!isNumber(options.retries)) options.retries = " + options.retries + ";\n\n"
         + indents(1) + "var assert = require('assert');\n"
         + indents(1) + "var acceptNextAlert = true;\n\n";
 };
