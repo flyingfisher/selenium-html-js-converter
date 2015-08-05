@@ -1,6 +1,7 @@
 /// <reference path="typings/node.d.ts" />
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
+var jsfmt = require("jsfmt");
 var app = {};
 app.log = console;
 app.log.debug = console.log;
@@ -10,7 +11,7 @@ var options = {};
  * Format TestCase and return the source.
  *
  * @param {string} testCase  TestCase to format
- * @param {object} userOptions
+ * @param {object} opts      Custom options
  *        {string} .testCaseName
  *                          The name of the test case. It will be used to embed
  *                          title into the source, and write screenshot files.
@@ -28,19 +29,19 @@ var options = {};
  *
  * @return {string}         The formatted test case.
  */
-function format(testCase, userOptions) {
-    if (!userOptions || typeof userOptions !== 'object')
-        userOptions = {};
-    app.log.info("Formatting testCase: " + userOptions.testCaseName);
+function format(testCase, opts) {
+    if (!opts || typeof opts !== 'object')
+        opts = {};
+    app.log.info("Formatting testCase: " + opts.testCaseName);
     var result = '';
     var header = "";
     var footer = "";
     app.commandCharIndex = 0;
-    app.testCaseName = userOptions.testCaseName || '';
+    app.testCaseName = opts.testCaseName || '';
     app.screenshotsCount = 0;
-    options.testCaseName = userOptions.testCaseName || 'Untitled';
-    options.timeout = typeof userOptions.timeout === 'number' ? userOptions.timeout : 30000;
-    options.retries = typeof userOptions.retries === 'number' ? userOptions.retries : 0;
+    options.testCaseName = opts.testCaseName || 'Untitled';
+    options.timeout = typeof opts.timeout === 'number' && !isNaN(opts.timeout) ? opts.timeout : 30000;
+    options.retries = typeof opts.retries === 'number' && !isNaN(opts.retries) ? opts.retries : 0;
     options.screenshotFolder = 'screenshots/' + app.testCaseName;
     header = formatHeader(testCase);
     result += header;
@@ -50,7 +51,7 @@ function format(testCase, userOptions) {
     footer = formatFooter(testCase);
     result += footer;
     testCase.formatLocal(app.name).footer = footer;
-    return result;
+    return jsfmt.format(result, opts.jsfmt);
 }
 exports.format = format;
 function setLogger(logger) {
@@ -69,9 +70,9 @@ function retryWrap(code) {
     if (options.retries) {
         var wrapped = "withRetry(browser, function () {\n";
         code.split('\n').forEach(function (line) {
-            wrapped += indents(1) + line + '\n';
+            wrapped += line + '\n';
         });
-        wrapped += indents(0) + "}, options.retries, options.timeout);";
+        wrapped += "}, options.retries, options.timeout);";
         return wrapped;
     }
     return code;
@@ -96,16 +97,8 @@ function filterForRemoteControl(originalCommands) {
     }
     return commands;
 }
-function addIndent(lines) {
-    return lines.replace(/.+/mg, function (str) {
-        return indent() + str;
-    });
-}
 function formatCommands(commands) {
     commands = filterForRemoteControl(commands);
-    if (app.lastIndent == null) {
-        app.lastIndent = '';
-    }
     var result = '';
     for (var i = 0; i < commands.length; i++) {
         var line = null;
@@ -116,19 +109,14 @@ function formatCommands(commands) {
         }
         else if (command.type == 'command') {
             line = formatCommand(command);
-            if (line != null)
-                line = addIndent(line);
             command.line = line;
         }
         else if (command.type == 'comment') {
             line = formatComment(command);
-            if (line != null)
-                line = addIndent(line);
             command.line = line;
         }
         command.charIndex = app.commandCharIndex;
         if (line != null) {
-            updateIndent(line);
             line = line + "\n";
             result += line;
             app.commandCharIndex += line.length;
@@ -136,18 +124,6 @@ function formatCommands(commands) {
         app.previouslyParsedCommand = command;
     }
     return result;
-}
-function updateIndent(line) {
-    var r = /^(\s*)/.exec(line);
-    if (r) {
-        app.lastIndent = r[1];
-    }
-}
-function indent() {
-    return app.lastIndent || '';
-}
-function setIndent(i) {
-    app.lastIndent = indents(i);
 }
 /* @override
  * This function filters the command list and strips away the commands we no longer need
@@ -245,7 +221,6 @@ function formatHeader(testCase) {
         replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (str, name) {
         return options[name];
     });
-    app.lastIndent = indents(parseInt(options.initialIndents, 10));
     formatLocal.header = header;
     return formatLocal.header;
 }
@@ -253,27 +228,6 @@ function formatFooter(testCase) {
     var formatLocal = testCase.formatLocal(app.name);
     formatLocal.footer = options.footer;
     return formatLocal.footer;
-}
-function indents(num) {
-    function repeat(c, n) {
-        var str = "";
-        for (var i = 0; i < n; i++) {
-            str += c;
-        }
-        return str;
-    }
-    try {
-        var indent = options.indent;
-        if ('tab' == indent) {
-            return repeat("\t", num);
-        }
-        else {
-            return repeat(" ", num * parseInt(options.indent, 10));
-        }
-    }
-    catch (error) {
-        return repeat(" ", 0);
-    }
 }
 function capitalize(string) {
     return string.replace(/^[a-z]/, function (str) {
@@ -679,9 +633,7 @@ function formatCommand(command) {
     }
     if (line) {
         /* For debugging test failures and taking screenshots when we fail, update currentCommand to match: */
-        return 'currentCommand = \'' + command.command + '('
-            + '"' + command.target + '", '
-            + '"' + command.value + '")\';\n'
+        return 'currentCommand = \'' + command.command + '(' + '"' + command.target + '", ' + '"' + command.value + '")\';\n'
             + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
     }
 }
@@ -779,7 +731,7 @@ SeleniumWebDriverAdaptor.prototype.check = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     var webElement = driver.findElement(locator.type, locator.string);
-    return SeleniumWebDriverAdaptor.ifCondition(notOperator() + webElement.isSelected(), indents(1) + webElement.click());
+    return SeleniumWebDriverAdaptor.ifCondition(notOperator() + webElement.isSelected(), webElement.click());
 };
 SeleniumWebDriverAdaptor.prototype.click = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
@@ -926,7 +878,7 @@ SeleniumWebDriverAdaptor.prototype.uncheck = function (elementLocator) {
     var locator = this._elementLocator(this.rawArgs[0]);
     var driver = new WDAPI.Driver();
     var webElement = driver.findElement(locator.type, locator.string);
-    return SeleniumWebDriverAdaptor.ifCondition(webElement.isSelected(), indents(1) + webElement.click());
+    return SeleniumWebDriverAdaptor.ifCondition(webElement.isSelected(), webElement.click());
 };
 SeleniumWebDriverAdaptor.prototype.select = function (elementLocator, label) {
     var locator = this._elementLocator(this.rawArgs[0]);
@@ -946,9 +898,7 @@ function useSeparateEqualsForArray() {
     return true;
 }
 function testClassName(testName) {
-    return testName.split(/[^0-9A-Za-z]+/).map(function (x) {
-        return capitalize(x);
-    }).join('');
+    return testName.split(/[^0-9A-Za-z]+/).map(function (x) { return capitalize(x); }).join('');
 }
 function testMethodName(testName) {
     return "test" + testClassName(testName);
@@ -965,11 +915,8 @@ Equals.prototype.toString = function () {
 Equals.prototype.assert = function () {
     var varA = getTempVarName();
     var varB = getTempVarName();
-    return "var " + varA + " = " + this.e1.toString() + ";\n"
-        + indents(0) + "var " + varB + " = " + this.e2.toString() + ";\n"
-        + indents(0) + "assert.equal(" + varA + ", " + varB
-        + ", 'Assertion error: Expected: ' + " + varA
-        + " + ', got: ' + " + varB + ");";
+    return "var " + varA + " = " + this.e1.toString() + ";\n" + "var " + varB + " = " + this.e2.toString() + ";\n"
+        + "assert.equal(" + varA + ", " + varB + ", 'Assertion error: Expected: ' + " + varA + " + ', got: ' + " + varB + ");";
 };
 Equals.prototype.verify = function () {
     return verify(this.assert());
@@ -1014,9 +961,9 @@ function assertFalse(expression) {
 }
 function verify(statement) {
     return "try {\n" +
-        indents(1) + statement + "\n" +
+        statement + "\n" +
         "} catch (e) {\n" +
-        indents(1) + "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
+        "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
         "}";
 }
 function verifyTrue(expression) {
@@ -1029,11 +976,10 @@ RegexpMatch.prototype.toString = function () {
     return this.expression + ".match(" + string(this.pattern) + ")";
 };
 function waitFor(expression) {
-    return "waitFor(browser, function(browser){\n"
-        + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
-        + indents(1) + "return " + expression.toString() + ";\n"
-        + indents(0) + "}, '" + expression.toString().replace(/'/g, "\\'")
-        + "', options.timeout);\n";
+    return "waitFor(browser, function(browser) {\n"
+        + (expression.setup ? expression.setup() + "\n" : "")
+        + "return " + expression.toString() + ";\n"
+        + "}, '" + expression.toString().replace(/'/g, "\\'") + "', options.timeout);\n";
 }
 function assertOrVerifyFailure(line, isAssert) {
     return "assert.throws(" + line + ")";
@@ -1139,7 +1085,7 @@ app.sendKeysMaping = {
   var suiteClass = /^(\w+)/.exec(filename)[1];
   suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
 
-  var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
+  var formattedSuite = "var " + suiteClass + " = { 'tests' : {}};\n";
 
   for (var i = 0; i < testSuite.tests.length; ++i) {
     var testClass = testSuite.tests[i].getTitle();
@@ -1147,29 +1093,27 @@ app.sendKeysMaping = {
   }
 
   formattedSuite += "\n"
-    + indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n"
-    + indents(1) + "var webdriver = require('selenium-webdriver');\n"
-    + indents(1) + "\n"
-    + indents(1) + "var driver = new webdriver.Builder().\n"
-    + indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n"
-    + indents(2) + "build();\n"
-    + indents(1) + 'var baseUrl = "";\n'
-    + indents(1) + "var acceptNextAlert = true;\n"
-    + indents(1) + "var verificationErrors = [];\n"
-    + indents(1) + "\n"
-    + indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
-    + indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
-    + indents(1) + "});\n"
-    + indents(0) + "}\n"
-    + indents(1) + "\n"
-    + indents(0) + "module.exports = " + suiteClass + ";\n"
-    + indents(0) + "//" + suiteClass + ".run();";
+    + suiteClass + ".run = function " + suiteClass + "_run() {\n"
+    + "var webdriver = require('selenium-webdriver');\n"
+    + "\n"
+    + "var driver = new webdriver.Builder().\n"
+    + "withCapabilities(webdriver.Capabilities.firefox()).\n"
+    + "build();\n"
+    + 'var baseUrl = "";\n'
+    + "var acceptNextAlert = true;\n"
+    + "var verificationErrors = [];\n"
+    + "\n"
+    + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
+    + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
+    + "});\n"
+    + "}\n"
+    + "\n"
+    + "module.exports = " + suiteClass + ";\n"
+    + "//" + suiteClass + ".run();";
 
   return formattedSuite;
 }*/
 options = {
-    indent: '4',
-    initialIndents: '1',
     showSelenese: 'false',
     defaultExtension: "js"
 };
@@ -1180,31 +1124,31 @@ options.getHeader = function () {
     return '"use strict";\n'
         + "/* jslint node: true */\n\n"
         + "module.exports = function ${methodName} (browser, options)  {\n\n"
-        + indents(1) + "if (!options) options = {};\n"
-        + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
-        + indents(1) + "if (!options.baseUrl) options.baseUrl = '${baseURL}';\n"
-        + indents(1) + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
-        + indents(1) + "if (!isNumber(options.timeout)) options.timeout = " + options.timeout + ";\n"
-        + indents(1) + "if (!isNumber(options.retries)) options.retries = " + options.retries + ";\n\n"
-        + indents(1) + "var assert = require('assert');\n"
-        + indents(1) + "var acceptNextAlert = true;\n"
-        + indents(1) + "var currentCommand;\n\n"
-        + indents(1) + "try {\n";
+        + "if (!options) options = {};\n"
+        + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
+        + "if (!options.baseUrl) options.baseUrl = '${baseURL}';\n"
+        + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
+        + "if (!isNumber(options.timeout)) options.timeout = " + options.timeout + ";\n"
+        + "if (!isNumber(options.retries)) options.retries = " + options.retries + ";\n\n"
+        + "var assert = require('assert');\n"
+        + "var acceptNextAlert = true;\n"
+        + "var currentCommand;\n\n"
+        + "try {\n";
 };
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname + "/selenium-utils.js", "utf-8");
-options.footer = indents(1) + "} catch(e) {\n"
-    + indents(2) + "var failedScreenShot = options.screenshotFolder + '/Exception@' + currentCommand.replace(/\\(.+/, '') + '.png';\n"
-    + indents(2) + "try {\n"
-    + indents(3) + "createFolderPath(options.screenshotFolder);\n"
-    + indents(3) + "browser.saveScreenshot(failedScreenShot);\n"
-    + indents(2) + "} catch (e) {\n"
-    + indents(3) + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Could not save screenshot after failure occured)';\n"
-    + indents(3) + "throw e;\n"
-    + indents(2) + "}\n"
-    + indents(2) + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Screenshot was saved to ' + failedScreenShot + ')';\n"
-    + indents(2) + "throw e;\n"
-    + indents(1) + "}\n"
+options.footer = "} catch(e) {\n"
+    + "var failedScreenShot = options.screenshotFolder + '/Exception@' + currentCommand.replace(/\\(.+/, '') + '.png';\n"
+    + "try {\n"
+    + "createFolderPath(options.screenshotFolder);\n"
+    + "browser.saveScreenshot(failedScreenShot);\n"
+    + "} catch (e) {\n"
+    + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Could not save screenshot after failure occured)';\n"
+    + "throw e;\n"
+    + "}\n"
+    + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Screenshot was saved to ' + failedScreenShot + ')';\n"
+    + "throw e;\n"
+    + "}\n"
     + "\n};\n\n" + ideFunc;
 /* no used in node, but should be used in selenium-ide, obsoleted
 app.configForm =
@@ -1262,9 +1206,9 @@ WDAPI.Driver.prototype.back = function () {
  */
 WDAPI.Driver.prototype.close = function () {
     return "if (browser.windowHandles().length > 1) {\n"
-        + indents(1) + this.ref + ".close();\n"
-        + indents(1) + "refocusWindow(" + this.ref + ");\n"
-        + indents(0) + "}";
+        + this.ref + ".close();\n"
+        + "refocusWindow(" + this.ref + ");\n"
+        + "}";
 };
 WDAPI.Driver.prototype.openWindow = function (url, name) {
     url = url ? "'" + url + "'" : "null";
@@ -1286,8 +1230,8 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function (fileName) {
     }
     var screenshotFileVar = getTempVarName();
     return 'var ' + screenshotFileVar + ' = "' + fileName + '.png";\n'
-        + indents(0) + 'createFolderPath(options.screenshotFolder);\n'
-        + indents(0) + this.ref + '.saveScreenshot(options.screenshotFolder + "/" + ' + screenshotFileVar + ')';
+        + 'createFolderPath(options.screenshotFolder);\n'
+        + this.ref + '.saveScreenshot(options.screenshotFolder + "/" + ' + screenshotFileVar + ')';
 };
 WDAPI.Driver.prototype.findElement = function (locatorType, locator) {
     return new WDAPI.Element(WDAPI.Driver.searchContext(locatorType, locator));

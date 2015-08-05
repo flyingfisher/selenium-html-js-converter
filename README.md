@@ -90,6 +90,10 @@ retry(browser, function () {
 }, options.retries, options.timeout);
 ```
 
+##### jsfmt
+
+The generated code is formatted with [jsfmt](https://github.com/rdio/jsfmt). You may override the default formatting options by passing your own via this member object. See [ESFormatter API](https://github.com/millermedeiros/esformatter#api) for syntax and available options.
+
 #### convertHtml(File|Str)ToJs(File|Str) options
 
 ##### testCaseName
