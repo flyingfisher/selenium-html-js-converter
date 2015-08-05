@@ -704,10 +704,10 @@ function formatCommand(command) {
     }
   }
   if (line) {
-    /* For debugging test failures, add a comment above the code to tell which Selenium command it corresponds to. */
-    return '/* Selenium command: ' + command.command + '('
+    /* For debugging test failures and taking screenshots when we fail, update currentCommand to match: */
+    return 'currentCommand = \'' + command.command + '('
       + '"' + command.target + '", '
-      + '"' + command.value + '") */\n'
+      + '"' + command.value + '")\';\n'
       /* All commands except those already wired to wait will be wrapped in a retry block if applicable: */
       + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
   }
@@ -1299,13 +1299,27 @@ options.getHeader = function() {
         + indents(1) + "if (!isNumber(options.timeout)) options.timeout = " + options.timeout + ";\n"
         + indents(1) + "if (!isNumber(options.retries)) options.retries = " + options.retries + ";\n\n"
         + indents(1) + "var assert = require('assert');\n"
-        + indents(1) + "var acceptNextAlert = true;\n\n";
+        + indents(1) + "var acceptNextAlert = true;\n"
+        + indents(1) + "var currentCommand;\n\n"
+        + indents(1) + "try {\n";
 };
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
 
-options.footer = "\n};\n\n" + ideFunc;
+options.footer = indents(1) + "} catch(e) {\n"
+  + indents(2) + "var failedScreenShot = options.screenshotFolder + '/Exception@' + currentCommand.replace(/\\(.+/, '') + '.png';\n"
+  + indents(2) + "try {\n"
+  + indents(3) + "createFolderPath(options.screenshotFolder);\n"
+  + indents(3) + "browser.saveScreenshot(failedScreenShot);\n"
+  + indents(2) + "} catch (e) {\n"
+  + indents(3) + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Could not save screenshot after failure occured)';\n"
+  + indents(3) + "throw e;\n"
+  + indents(2) + "}\n"
+  + indents(2) + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Screenshot was saved to ' + failedScreenShot + ')';\n"
+  + indents(2) + "throw e;\n"
+  + indents(1) + "}\n"
+  + "\n};\n\n" + ideFunc;
 
 /* no used in node, but should be used in selenium-ide, obsoleted
 app.configForm =
