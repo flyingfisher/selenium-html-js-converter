@@ -83,13 +83,13 @@ function getTempVarName() {
 
 function retryWrap (code) {
   if (options.retries) {
-    var wrapped = "withRetry(browser, function () {\n";
+    var wrapped = "withRetry(function () {\n";
     code.split('\n').forEach(function(line) {
       wrapped += line + '\n';
     });
-    wrapped += "}, options.retries, options.timeout);";
+    wrapped += "});";
     return wrapped;
-}
+  }
   return code;
 }
 
@@ -1067,10 +1067,10 @@ RegexpMatch.prototype.toString = function() {
 };
 
 function waitFor(expression) {
-  return "waitFor(browser, function(browser) {\n"
+  return "waitFor(function() {\n"
     + (expression.setup ? expression.setup() + "\n" : "")
     + "return " + expression.toString() + ";\n"
-    + "}, '" + expression.toString().replace(/'/g, "\\'") + "', options.timeout);\n";
+    + "}, '" + expression.toString().replace(/'/g, "\\'") + "');\n";
 }
 
 function assertOrVerifyFailure(line, isAssert) {
@@ -1227,15 +1227,12 @@ function defaultExtension() {
 options.getHeader = function() {
   return '"use strict";\n'
     + "/* jslint node: true */\n\n"
-    + "module.exports = function ${methodName} (browser, options)  {\n\n"
-    + "if (!options) options = {};\n"
-    + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
-    + "if (!options.baseUrl) options.baseUrl = '${baseURL}';\n"
-    + "if (!options.screenshotFolder) options.screenshotFolder = '" + options.screenshotFolder + "';\n"
-    + "if (!isNumber(options.timeout)) options.timeout = " + options.timeout + ";\n"
-    + "if (!isNumber(options.retries)) options.retries = " + options.retries + ";\n\n"
-    + "var assert = require('assert');\n"
+    + "var assert = require('assert');\n\n"
+    + "var browser, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '${baseURL}' };\n\n"
+    + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
+    + "browser = _browser;\n"
     + "var acceptNextAlert = true;\n"
+    + "getRuntimeOptions(_options);\n"
     + "var currentCommand;\n\n"
     + "try {\n";
 };
@@ -1319,14 +1316,14 @@ WDAPI.Driver.prototype.back = function() {
 WDAPI.Driver.prototype.close = function() {
   return "if (browser.windowHandles().length > 1) {\n"
     + this.ref + ".close();\n"
-    + "refocusWindow(" + this.ref + ");\n"
+    + "refocusWindow();\n"
     + "}";
 };
 
 WDAPI.Driver.prototype.openWindow = function(url, name) {
   url = url ? "'" + url + "'" : "null";
   name = name ? "'" + name + "'" : "null";
-  return this.ref + ".newWindow(addBaseUrl(options.baseUrl, " + url + ", options.forceBaseUrl), " + name + ")";
+  return this.ref + ".newWindow(addBaseUrl(" + url + "), " + name + ")";
 };
 
 WDAPI.Driver.prototype.selectWindow = function(name) {
@@ -1364,7 +1361,7 @@ WDAPI.Driver.prototype.getCurrentUrl = function() {
 };
 
 WDAPI.Driver.prototype.get = function(url) {
-  return this.ref + ".get(addBaseUrl(options.baseUrl, " + url + ", options.forceBaseUrl))";
+  return this.ref + ".get(addBaseUrl(" + url + "))";
 };
 
 WDAPI.Driver.prototype.getTitle = function() {
@@ -1372,7 +1369,7 @@ WDAPI.Driver.prototype.getTitle = function() {
 };
 
 WDAPI.Driver.prototype.getAlert = function() {
-  return "closeAlertAndGetItsText(browser, acceptNextAlert);\n"
+  return "closeAlertAndGetItsText(acceptNextAlert);\n"
     + "acceptNextAlert = true";
 };
 
@@ -1462,5 +1459,5 @@ WDAPI.Utils.isElementPresent = function(how, what) {
 };
 
 WDAPI.Utils.isAlertPresent = function() {
-  return "isAlertPresent(browser)";
+  return "isAlertPresent()";
 };

@@ -1,65 +1,88 @@
+function getRuntimeOptions (opts) {
+    if (typeof opts.lbParam === 'object') {
+        options.lbParam = opts.lbParam;
+    }
+
+    if (opts.baseUrl && typeof opts.baseUrl === 'string') {
+        options.baseUrl = opts.baseUrl;
+    }
+
+    if (opts.screenshotFolder && typeof opts.screenshotFolder === 'string') {
+        options.screenshotFolder = opts.screenshotFolder;
+    }
+
+    if (opts.timeout && isNumber(opts.timeout)) {
+        options.timeout = opts.timeout;
+    }
+
+    if (opts.retries && isNumber(opts.retries)) {
+        options.retries = opts.retries;
+    }
+}
+
 function isNumber (val) {
     return typeof val === 'number' && !isNaN(val);
 }
 
-function isAlertPresent (browser) {
+function isAlertPresent (wdBrowser) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+
     try {
-        browser.alertText();
+        wdBrowser.alertText();
         return true;
     } catch (e) {
         return false;
     }
 }
 
-function closeAlertAndGetItsText (browser, acceptNextAlert) {
+function closeAlertAndGetItsText (acceptNextAlert, wdBrowser) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+
     try {
-        var alertText = browser.alertText() ;
+        var alertText = wdBrowser.alertText() ;
         if (acceptNextAlert) {
-            browser.acceptAlert();
+            wdBrowser.acceptAlert();
         } else {
-            browser.dismissAlert();
+            wdBrowser.dismissAlert();
         }
         return alertText;
     } catch (ignore) {}
 }
 
 function isEmptyArray (arr) {
-    return !(arr && arr.length);
+    return arr instanceof Array && arr.length === 0;
 }
 
-function endsWith (str, endStr) {
-    if (!endStr) return false;
+function waitFor (checkFunc, expression, timeout, pollFreq, wdBrowser) {
 
-    var lastIndex = str && str.lastIndexOf(endStr);
-    if (typeof lastIndex === "undefined") return false;
-
-    return str.length === (lastIndex + endStr.length);
-}
-
-function startsWith (str,startStr) {
-    var firstIndex = str && str.indexOf(startStr);
-    if (typeof firstIndex === "undefined")
-        return false;
-    return firstIndex === 0;
-}
-
-function waitFor (browser, checkFunc, expression, timeout, pollFreq) {
-    var val;
-
-    var timeLeft = timeout;
-
-    if (!pollFreq) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+    if (!isNumber(timeout)) {
+        timeout = options.timeout;
+    }
+    if (!isNumber(pollFreq)) {
         pollFreq = 200;
     }
 
+    var val;
+    var timeLeft = timeout;
+
     while (!val) {
-        val = checkFunc(browser);
+        val = checkFunc();
+
         if (val)
             break;
+
         if (timeLeft < 0) {
             throw new Error('Timed out after ' + timeout + ' msecs waiting for expression: ' + expression);
         }
-        browser.sleep(pollFreq);
+
+        wdBrowser.sleep(pollFreq);
         timeLeft -= pollFreq;
     }
 
@@ -89,12 +112,22 @@ function createFolderPath (path) {
  * If the path itself is an absolute one including a domain, it'll be returned as-is, unless force is set to true, in
  * which case the existing domain is replaced with the base.
  *
- * @param  {string} base  The base url
- * @param  {string} path  The path to prefix
- * @param  {bool}   force If true, force prefixing even if path is an absolute url
+ * When optional arguments are when omitted, values from glocal options object are used.
+ *
+ * @param  {string} path  The path to prefix with the base url
+ * @param  {string} base  (optional) The base url
+ * @param  {bool}   force (optional) If true, force prefixing even if path is an absolute url
  * @return {string}       The prefixed url
  */
-function addBaseUrl (base, path, force) {
+function addBaseUrl (path, base, force) {
+    if (typeof base !== 'string') {
+        base = options.baseUrl;
+    }
+
+    if (typeof force !== 'boolean') {
+        force = options.forceBaseUrl;
+    }
+
     if (path.match(/^http/)) {
         if (force) {
             return path.replace(/^http(s?):\/\/[^/]+/, base).replace(/([^:])\/\/+/g, '$1/');
@@ -111,14 +144,17 @@ function addBaseUrl (base, path, force) {
  * to the previous window on the stack, so you may execute this function to
  * ensure that subsequent tests won't be targeting a defunct window handle.
  *
- * @param  {WdSyncClient.browser} browser Browser instance.
+ * @param  {WdSyncClient.browser} wdBrowser (optional) Browser instance.
  * @return {void}
  */
-function refocusWindow (browser) {
-    var handles = browser.windowHandles();
+function refocusWindow (wdBrowser) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+    var handles = wdBrowser.windowHandles();
     if (handles.length) {
         try {
-            browser.window(handles[handles.length-1]);
+            wdBrowser.window(handles[handles.length-1]);
         } catch (e) {
             console.warn('Failed to automatically restore focus to topmost window on browser stack. Error:', e);
         }
@@ -134,30 +170,44 @@ function refocusWindow (browser) {
  * will be half of the last one's, and so forth. The first attempt will have the
  * same pause as that of the first retry.
  *
- * @param  {WdSyncClient.browser} browser Browser instance
- * @param  {function}             code    The code to execute
- * @param  {number}               retries The max number of retries
- * @param  {number}               timeout The max number of msecs to keep trying
+ * Optional arguments use glocal values when omitted
+ *
+ * @param  {function}             code      The code to execute
+ * @param  {WdSyncClient.browser} wdBrowser (optional) Browser instance
+ * @param  {number}               retries   (optional) The max number of retries
+ * @param  {number}               timeout   (optional) The max number of msecs to keep trying
  * @return {mixed}                Whatever the code block returns
  */
-function withRetry (browser, code, retries, timeout) {
-  var durations = [timeout];
-  var err;
-
-  while (retries) {
-    durations[0] = Math.ceil(durations[0]/2);
-    durations.unshift(durations[0]);
-    --retries;
-  }
-
-  for (var i = 0; i < durations.length; ++i) {
-    try {
-      return code();
-    } catch (e) {
-      err = e;
-      browser.sleep(durations[i]);
+function withRetry (code, wdBrowser, retries, timeout) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
     }
-  }
 
-  throw(err);
+    if (!isNumber(retries)) {
+        retries = options.retries;
+    }
+
+    if (!isNumber(timeout)) {
+        timeout = options.timeout;
+    }
+
+    var durations = [timeout];
+    var err;
+
+    while (retries) {
+        durations[0] = Math.ceil(durations[0]/2);
+        durations.unshift(durations[0]);
+        --retries;
+    }
+
+    for (var i = 0; i < durations.length; ++i) {
+        try {
+            return code();
+        } catch (e) {
+            err = e;
+            wdBrowser.sleep(durations[i]);
+        }
+    }
+
+    throw(err);
 }
