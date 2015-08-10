@@ -542,6 +542,12 @@ function formatCommand(command) {
                             eq = eq.invert();
                         line = waitFor(eq);
                     }
+                    else if (command.command.match(/^(getEval|runScript)/)) {
+                        call = new CallSelenium(def.name);
+                        call.rawArgs.push(command.target);
+                        call.args.push(xlateArgument(command.target));
+                        line = statement(call, command);
+                    }
                 }
             }
             else if ('pause' == command.command) {

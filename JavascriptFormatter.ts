@@ -515,7 +515,7 @@ CallSelenium.prototype.toString = function() {
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
   if (this.message == 'getEval')
-    adaptor.rawArgs=this.args; // getEval only args available
+    adaptor.rawArgs = this.args; // getEval only args available
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
@@ -573,6 +573,11 @@ function formatCommand(command) {
             eq = seleniumEquals(def.returnType, extraArg, call);
             if (def.negative) eq = eq.invert();
             line = waitFor(eq);
+          } else if (command.command.match(/^(getEval|runScript)/)) {
+            call = new CallSelenium(def.name);
+            call.rawArgs.push(command.target);
+            call.args.push(xlateArgument(command.target));
+            line = statement(call, command);
           }
         }
       } else if ('pause' == command.command) {
