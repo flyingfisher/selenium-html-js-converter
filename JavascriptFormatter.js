@@ -761,6 +761,10 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function () {
     /* Ignoring windowFocus command, as window focusing is handled implicitly in the previous wd command. */
     return "";
 };
+SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function () {
+    var driver = new WDAPI.Driver();
+    return driver.deleteAllCookies();
+};
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function () {
     var driver = new WDAPI.Driver();
     var fileName = this.rawArgs[0];
@@ -1215,6 +1219,9 @@ WDAPI.Driver.prototype.openWindow = function (url, name) {
 WDAPI.Driver.prototype.selectWindow = function (name) {
     name = name ? "'" + name + "'" : "null";
     return this.ref + ".window(" + name + ")";
+};
+WDAPI.Driver.prototype.deleteAllCookies = function () {
+    return this.ref + '.deleteAllCookies()';
 };
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function (fileName) {
     var screenshotFolder = 'screenshots/' + app.testCaseName;

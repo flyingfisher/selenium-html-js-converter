@@ -802,6 +802,11 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function() {
   return "";
 };
 
+SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function() {
+  var driver = new WDAPI.Driver();
+  return driver.deleteAllCookies();
+};
+
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
   var driver = new WDAPI.Driver();
   var fileName = this.rawArgs[0];
@@ -1329,6 +1334,10 @@ WDAPI.Driver.prototype.openWindow = function(url, name) {
 WDAPI.Driver.prototype.selectWindow = function(name) {
   name = name ? "'" + name + "'" : "null";
   return this.ref + ".window(" + name + ")";
+};
+
+WDAPI.Driver.prototype.deleteAllCookies = function() {
+  return this.ref + '.deleteAllCookies()';
 };
 
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
