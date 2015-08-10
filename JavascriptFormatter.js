@@ -474,8 +474,8 @@ CallSelenium.prototype.toString = function () {
     }
     var result = '';
     var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
-    if (this.message == 'getEval')
-        adaptor.rawArgs = this.args; // getEval only args available
+    if (this.message.match(/^(getEval|runScript)/))
+        adaptor.rawArgs = this.args; // getEval only args available (Daniel: I assume this means we always want escaped stringified args here; that is, the code as converted to a string, for use with browser.safeEval(<code string>), and getEval may be used elsewhere, so we still want to have that pass forth unescaped rawArgs by default...?)
     if (adaptor[this.message]) {
         var codeBlock = adaptor[this.message].call(adaptor);
         if (adaptor.negative) {
@@ -543,9 +543,7 @@ function formatCommand(command) {
                         line = waitFor(eq);
                     }
                     else if (command.command.match(/^(getEval|runScript)/)) {
-                        call = new CallSelenium(def.name);
-                        call.rawArgs.push(command.target);
-                        call.args.push(xlateArgument(command.target));
+                        call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(i)), command.getParameterAt(i));
                         line = statement(call, command);
                     }
                 }
@@ -895,7 +893,7 @@ SeleniumWebDriverAdaptor.prototype.select = function (elementLocator, label) {
     var driver = new WDAPI.Driver();
     return driver.findElement(locator.type, locator.string).select(this._selectLocator(this.rawArgs[1]));
 };
-SeleniumWebDriverAdaptor.prototype.getEval = function (script) {
+SeleniumWebDriverAdaptor.prototype.getEval = SeleniumWebDriverAdaptor.prototype.runScript = function (script) {
     var driver = new WDAPI.Driver();
     return driver.eval(this.rawArgs[0]);
 };
