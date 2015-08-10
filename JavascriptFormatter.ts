@@ -1233,7 +1233,7 @@ options.getHeader = function() {
     + "browser = _browser;\n"
     + "var acceptNextAlert = true;\n"
     + "getRuntimeOptions(_options);\n"
-    + "var currentCommand;\n\n"
+    + "var currentCommand = '';\n\n"
     + "try {\n";
 };
 
