@@ -540,6 +540,7 @@ function formatCommand(command) {
     var eq;
     var method;
     if (command.type == 'command') {
+      /* Definitions are extracted from the iedoc-core.xml doc */
       var def = command.getDefinition();
       if (def && def.isAccessor) {
         call = new CallSelenium(def.name);
@@ -578,6 +579,10 @@ function formatCommand(command) {
             line = statement(call, command);
           }
         }
+      } else if ('setWindowSize' === command.command) {
+        call = new CallSelenium('setWindowSize');
+        call.rawArgs.push(command.getParameterAt(0));
+        line = statement(call, command);
       } else if ('pause' == command.command) {
         line = pause(command.target);
       } else if (app.echo && 'echo' == command.command) {
@@ -803,6 +808,13 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function() {
   }
   /* Ignoring windowFocus command, as window focusing is handled implicitly in the previous wd command. */
   return "";
+};
+
+/* Custom user extension: Resize browser window directly via wd's browser object. */
+SeleniumWebDriverAdaptor.prototype.setWindowSize = function() {
+  var dimensions = this.rawArgs[0].split(/[^0-9]+/);
+  var driver = new WDAPI.Driver();
+  return driver.setWindowSize(dimensions[0], dimensions[1]);
 };
 
 SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function() {
@@ -1337,6 +1349,10 @@ WDAPI.Driver.prototype.openWindow = function(url, name) {
 WDAPI.Driver.prototype.selectWindow = function(name) {
   name = name ? "'" + name + "'" : "null";
   return this.ref + ".window(" + name + ")";
+};
+
+WDAPI.Driver.prototype.setWindowSize = function(width, height) {
+  return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
 };
 
 WDAPI.Driver.prototype.deleteAllCookies = function() {

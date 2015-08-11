@@ -499,9 +499,13 @@ function formatCommand(command) {
         var i;
         var eq;
         var method;
+        console.log(command);
         if (command.type == 'command') {
+            console.log('is command');
+            /* Definitions are extracted from the iedoc-core.xml doc */
             var def = command.getDefinition();
             if (def && def.isAccessor) {
+                console.log('has accessor', def);
                 call = new CallSelenium(def.name);
                 for (i = 0; i < def.params.length; i++) {
                     call.rawArgs.push(command.getParameterAt(i));
@@ -548,6 +552,11 @@ function formatCommand(command) {
                     }
                 }
             }
+            else if ('setWindowSize' === command.command) {
+                call = new CallSelenium('setWindowSize');
+                call.rawArgs.push(command.getParameterAt(0));
+                line = statement(call, command);
+            }
             else if ('pause' == command.command) {
                 line = pause(command.target);
             }
@@ -577,6 +586,7 @@ function formatCommand(command) {
                 line = statement(eq[method]());
             }
             else if (def) {
+                console.log('has def');
                 if (def.name.match(/^(assert|verify)(Error|Failure)OnNext$/)) {
                     app.assertOrVerifyFailureOnNext = true;
                     app.assertFailureOnNext = def.name.match(/^assert/);
@@ -764,6 +774,12 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function () {
     }
     /* Ignoring windowFocus command, as window focusing is handled implicitly in the previous wd command. */
     return "";
+};
+/* Custom user extension: Resize browser window directly via wd's browser object. */
+SeleniumWebDriverAdaptor.prototype.setWindowSize = function () {
+    var dimensions = this.rawArgs[0].split(/[^0-9]+/);
+    var driver = new WDAPI.Driver();
+    return driver.setWindowSize(dimensions[0], dimensions[1]);
 };
 SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function () {
     var driver = new WDAPI.Driver();
@@ -1223,6 +1239,9 @@ WDAPI.Driver.prototype.openWindow = function (url, name) {
 WDAPI.Driver.prototype.selectWindow = function (name) {
     name = name ? "'" + name + "'" : "null";
     return this.ref + ".window(" + name + ")";
+};
+WDAPI.Driver.prototype.setWindowSize = function (width, height) {
+    return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
 };
 WDAPI.Driver.prototype.deleteAllCookies = function () {
     return this.ref + '.deleteAllCookies()';
