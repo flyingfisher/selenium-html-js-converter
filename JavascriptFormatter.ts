@@ -4,10 +4,10 @@ var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
 var jsfmt = require("jsfmt");
 
+var log = console;
+log.debug = log.info;
+
 var app:any = {};
-app.log = console;
-app.log.debug = console.log;
-var log = app.log;
 
 var options:any = {};
 
@@ -37,7 +37,7 @@ export function format(testCase, opts) {
   if (!opts || typeof opts !== 'object')
     opts = {};
 
-  app.log.info("Formatting testCase: " + opts.testCaseName);
+  log.info("Formatting testCase: " + opts.testCaseName);
 
   var result = '';
   var header = "";
@@ -629,12 +629,12 @@ function formatCommand(command) {
           line = statement(call, command);
         }
       } else {
-        app.log.info("Unknown command: <" + command.command + ">");
+        log.info("Unknown command: <" + command.command + ">");
         throw 'Unknown command [' + command.command + ']';
       }
     }
   } catch(e) {
-    app.log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
+    log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
     // TODO
 //    var call = new CallSelenium(command.command);
 //    if ((command.target != null && command.target.length > 0)
