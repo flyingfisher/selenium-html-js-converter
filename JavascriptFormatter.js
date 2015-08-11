@@ -543,7 +543,7 @@ function formatCommand(command) {
                         line = waitFor(eq);
                     }
                     else if (command.command.match(/^(getEval|runScript)/)) {
-                        call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(i)), command.getParameterAt(i));
+                        call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(0));
                         line = statement(call, command);
                     }
                 }
