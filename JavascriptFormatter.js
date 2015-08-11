@@ -499,13 +499,10 @@ function formatCommand(command) {
         var i;
         var eq;
         var method;
-        console.log(command);
         if (command.type == 'command') {
-            console.log('is command');
             /* Definitions are extracted from the iedoc-core.xml doc */
             var def = command.getDefinition();
             if (def && def.isAccessor) {
-                console.log('has accessor', def);
                 call = new CallSelenium(def.name);
                 for (i = 0; i < def.params.length; i++) {
                     call.rawArgs.push(command.getParameterAt(i));
@@ -586,7 +583,6 @@ function formatCommand(command) {
                 line = statement(eq[method]());
             }
             else if (def) {
-                console.log('has def');
                 if (def.name.match(/^(assert|verify)(Error|Failure)OnNext$/)) {
                     app.assertOrVerifyFailureOnNext = true;
                     app.assertFailureOnNext = def.name.match(/^assert/);
