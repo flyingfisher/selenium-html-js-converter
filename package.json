@@ -1,7 +1,7 @@
 {
-  "name": "selenium-html-js-converter",
-  "version": "0.2.10",
-  "description": "Convert selenium html to javascript (selenium-webdriver)",
+  "name": "selenium-html-js-converter-lb",
+  "version": "0.2.11",
+  "description": "Convert selenium html to javascript (selenium-webdriver) for loadbooster",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -17,13 +17,14 @@
   },
   "keywords": [
     "selenium",
-    "converter"
+    "converter",
+    "loadbooster"
   ],
   "author": "yu.flying1004@gmail.com",
   "license": "BSD",
-  "gitHead": "36eaac20fd5d7ddc66f314a8b3d22d2223ba28a0",
   "repository": {
     "type": "git",
+    "branch": "loadbooster_version",
     "url": "git://github.com/flyingfisher/selenium-html-js-converter.git"
   }
 }

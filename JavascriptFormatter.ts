@@ -505,8 +505,8 @@ CallSelenium.prototype.toString = function() {
   }
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
-  if (this.message == 'getEval')
-    adaptor.rawArgs=this.args; // getEval only args available
+  if (this.message == 'getEval' || this.message === "runScript")
+    adaptor.rawArgs=this.args; // only args available
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
@@ -532,7 +532,7 @@ function formatCommand(command) {
     var method;
     if (command.type == 'command') {
       var def = command.getDefinition();
-      if (def && def.isAccessor) {
+      if (def && def.isAccessor && def.name !== "getEval") {
         call = new CallSelenium(def.name);
         for (i = 0; i < def.params.length; i++) {
           call.rawArgs.push(command.getParameterAt(i));
@@ -916,6 +916,11 @@ SeleniumWebDriverAdaptor.prototype.select = function(elementLocator, label) {
 };
 
 SeleniumWebDriverAdaptor.prototype.getEval = function(script) {
+    var driver = new WDAPI.Driver();
+    return driver.eval(this.rawArgs[0]);
+};
+
+SeleniumWebDriverAdaptor.prototype.runScript = function(script) {
     var driver = new WDAPI.Driver();
     return driver.eval(this.rawArgs[0]);
 };
