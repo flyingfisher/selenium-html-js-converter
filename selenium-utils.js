@@ -5,6 +5,9 @@ function getRuntimeOptions (opts) {
 
     if (opts.baseUrl && typeof opts.baseUrl === 'string') {
         options.baseUrl = opts.baseUrl;
+        if (opts.forceBaseUrl && typeof opts.forceBaseUrl === 'boolean') {
+          options.forceBaseUrl = opts.forceBaseUrl;
+        }
     }
 
     if (opts.screenshotFolder && typeof opts.screenshotFolder === 'string') {
