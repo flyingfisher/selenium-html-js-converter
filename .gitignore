@@ -4,3 +4,5 @@
 /npm-debug.log
 /test/test2.html
 /*.js.map
+*.sublime-project
+*.sublime-workspace
