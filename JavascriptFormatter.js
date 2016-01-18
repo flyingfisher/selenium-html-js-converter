@@ -42,6 +42,7 @@ function format(testCase, opts) {
     options.timeout = typeof opts.timeout === 'number' && !isNaN(opts.timeout) ? opts.timeout : 30000;
     options.retries = typeof opts.retries === 'number' && !isNaN(opts.retries) ? opts.retries : 0;
     options.screenshotFolder = 'screenshots/' + app.testCaseName;
+    options.baseUrl = opts.baseUrl || '${baseURL}';
     header = formatHeader(testCase);
     result += header;
     app.commandCharIndex = header.length;
@@ -1143,7 +1144,7 @@ options.getHeader = function () {
     return '"use strict";\n'
         + "/* jslint node: true */\n\n"
         + "var assert = require('assert');\n\n"
-        + "var browser, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '${baseURL}' };\n\n"
+        + "var browser, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
         + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
         + "browser = _browser;\n"
         + "var acceptNextAlert = true;\n"

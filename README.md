@@ -90,6 +90,10 @@ retry(browser, function () {
 }, options.retries, options.timeout);
 ```
 
+##### baseUrl
+
+The base url is by default extracted from `<link rel="selenium.base" href="${baseURL}" />` from the header of the test files. However, you may want to ignore this value and specify it yourself at conversion time. The Firefox Selenium IDE sets this property when it creates a new text file, and you cannot change it in the IDE afterwards. This is unfortunate if, for instance, you collect test cases from several colleagues, and their `selenium.base` values are either wrong or differing between them.
+
 ##### jsfmt
 
 The generated code is formatted with [jsfmt](https://github.com/rdio/jsfmt). You may override the default formatting options by passing your own via this member object. See [ESFormatter API](https://github.com/millermedeiros/esformatter#api) for syntax and available options.
@@ -158,6 +162,8 @@ Changes the baseUrl for relative links. This is useful, for instance, if you tes
 #### forceBaseUrl
 
 Forces urls to be prefixed by the baseUrl, even when they aren't relative. Useful if you have test cases with absolute URLs and you need to force them to target a different domain. The domain part of the url will be replaced with the value of baseUrl.
+
+Please note that (currently) testing against a url with an asterisk or question mark may cause domain substition not to work with some commands, such as assertLocation.
 
 ## Logging
 
