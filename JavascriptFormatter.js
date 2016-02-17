@@ -643,7 +643,7 @@ function formatCommand(command) {
     }
     if (line) {
         /* For debugging test failures and taking screenshots when we fail, update currentCommand to match: */
-        return 'currentCommand = \'' + command.command + '(' + '"' + command.target + '", ' + '"' + command.value + '")\';\n'
+        return 'currentCommand = \'' + command.command + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n'
             + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
     }
 }
@@ -972,12 +972,12 @@ function ifCondition(expression, callback) {
 function assertTrue(expression) {
     return "assert.strictEqual(!!" + expression.toString() + ", true"
         + ", 'Assertion error: Expected: true, got: ' + "
-        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
+        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand.toString().replace(/"/g, '\\"') + " ]\");";
 }
 function assertFalse(expression) {
     return "assert.strictEqual(!!" + expression.toString() + ", false"
         + ", 'Assertion error: Expected: false, got: ' + "
-        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
+        + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand.toString().replace(/"/g, '\\"') + " ]\");";
 }
 function verify(statement) {
     return "try {\n" +
