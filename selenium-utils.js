@@ -1,3 +1,45 @@
+/**
+ * A hacky way to implement *AndWait Selenese commands. Native wd doesn't offer
+ * commands equivalent to e.g. clickAndWait or dragAndDropAndWait (actually
+ * neither dragAndDrop nor AndWait exist in wd) or clickAndWait. We work around
+ * it wrapping all *AndWait commands in code that first taints the document body
+ * with a class, then runs the base command, and waits for a new document ready
+ * state without the tainted body.
+ *
+ * @param  {function}             code      The code to execute
+ * @param  {WdSyncClient.browser} wdBrowser (optional) Browser instance
+ * @return {void}
+ */
+function doAndWait (code, wdBrowser) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+    wdBrowser.execute('document.body.className += " SHTML2JSC"');
+    code();
+    withRetry(function () {
+        if (wdBrowser.execute("return document.readyState") !== 'complete'  || wdBrowser.hasElementByCssSelector('body.SHTML2JSC'))
+            throw new Error('Page did not load in time');
+    }, wdBrowser);
+}
+
+/**
+ * Implements waitForPageToLoad selenese command. As opposed to the Selenium
+ * IDE implementation, this one actually waits for all resources to have been
+ * loaded.
+ *
+ * @param  {WdSyncClient.browser} wdBrowser (optional) Browser instance.
+ * @return {void}
+ */
+function waitForPageToLoad (wdBrowser) {
+    if (typeof wdBrowser !== 'object') {
+        wdBrowser = browser;
+    }
+    withRetry(function () {
+        if (wdBrowser.execute("return document.readyState") !== 'complete')
+            throw new Error('Page did not load in time');
+    });
+}
+
 function getRuntimeOptions (opts) {
     if (typeof opts.lbParam === 'object') {
         options.lbParam = opts.lbParam;

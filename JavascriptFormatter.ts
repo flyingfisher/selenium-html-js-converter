@@ -83,48 +83,55 @@ function getTempVarName() {
 }
 
 function retryWrap (code) {
-  if (options.retries) {
-    var wrapped = "withRetry(function () {\n";
-    code.split('\n').forEach(function(line) {
-      wrapped += line + '\n';
-    });
-    wrapped += "});";
-    return wrapped;
-  }
-  return code;
+  var wrapped = "withRetry(function () {\n";
+  code.split('\n').forEach(function(line) {
+    wrapped += line + '\n';
+  });
+  wrapped += "});";
+  return wrapped;
 }
 
-function filterForRemoteControl(originalCommands) {
-  var commands = [];
-  for (var i = 0; i < originalCommands.length; i++) {
-    var c = originalCommands[i];
-    if (c.type == 'command' && c.command.match(/AndWait$/)) {
-      var c1 = c.createCopy();
-      c1.command = c.command.replace(/AndWait$/, '');
-      commands.push(c1);
-      commands.push(new Command("waitForPageToLoad", "options.timeout"));
-    } else {
-      commands.push(c);
-    }
-  }
-  if (app.postFilter) {
-    // formats can inject command list post-processing here
-    commands = app.postFilter(commands);
-  }
-  return commands;
+function andWait (code) {
+  var wrapped = "doAndWait(function () {\n";
+  code.split('\n').forEach(function(line) {
+    wrapped += line + '\n';
+  });
+  wrapped += "});";
+  return wrapped;
+}
+
+function filterForRemoteControl(commands) {
+  return app.postFilter ? app.postFilter(commands) : commands;
 }
 
 function formatCommands(commands) {
   commands = filterForRemoteControl(commands);
   var result = '';
+  var line = null;
+  var command;
+  var commandName;
+  var hasAndWaitSuffix;
   for (var i = 0; i < commands.length; i++) {
-    var line = null;
-    var command = commands[i];
+    command = commands[i];
+    commandName = command.command;
+    hasAndWaitSuffix = !!commandName.match(/AndWait$/);
+    if (hasAndWaitSuffix) {
+      command.command = commandName.replace(/AndWait$/, '');
+    }
     app.currentlyParsingCommand = command;
     if (command.type == 'line') {
       line = command.line;
     } else if (command.type == 'command') {
       line = formatCommand(command);
+      /* If retries are enabled, wrap the code block in a retry wrapper, unless the command is of the waiting type */
+      if (options.retries && !commandName.match(/(^waitFor)|(AndWait$)/)) {
+        line = retryWrap(line);
+      /* All *AndWait commands get their own wrapping: */
+      } else if (hasAndWaitSuffix) {
+        line = andWait(line);
+      }
+      /* For debugging test failures and for screenshotting, we use currentCommand to keep track of what last ran: */
+      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n' + line;
       command.line = line;
     } else if (command.type == 'comment') {
       line = formatComment(command);
@@ -149,7 +156,7 @@ function formatCommands(commands) {
 app.postFilter = function(originalCommands) {
   var commands = [];
   var commandsToSkip = {
-    'waitForPageToLoad' : 1,
+    //'waitForPageToLoad' : 1,
     //'pause': 1
   };
   var rc;
@@ -510,9 +517,6 @@ CallSelenium.prototype.invert = function() {
 
 CallSelenium.prototype.toString = function() {
   log.info('Processing ' + this.message);
-  if (this.message == 'waitForPageToLoad') {
-    return '';
-  }
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
   if (this.message.match(/^(getEval|runScript)/))
@@ -665,12 +669,7 @@ function formatCommand(command) {
       line = formatComment(new Comment(command.command + ' | ' + command.target + ' | ' + command.value)) + "\n" + line;
     }
   }
-  if (line) {
-    /* For debugging test failures and taking screenshots when we fail, update currentCommand to match: */
-    return 'currentCommand = \'' + command.command + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n'
-      /* All commands except those already wired to wait will be wrapped in a retry block if applicable: */
-      + (command.command.match(/(^waitFor)|(AndWait$)/) ? line : retryWrap(line)) + "\n";
-  }
+  return line;
 }
 
 app.remoteControl = true;
@@ -788,6 +787,11 @@ SeleniumWebDriverAdaptor.prototype.click = function(elementLocator) {
 SeleniumWebDriverAdaptor.prototype.close = function() {
   var driver = new WDAPI.Driver();
   return driver.close();
+};
+
+SeleniumWebDriverAdaptor.prototype.waitForPageToLoad = function() {
+  var driver = new WDAPI.Driver();
+  return driver.waitForPageToLoad();
 };
 
 SeleniumWebDriverAdaptor.prototype.openWindow = function() {
@@ -1346,6 +1350,10 @@ WDAPI.Driver.prototype.close = function() {
     + this.ref + ".close();\n"
     + "refocusWindow();\n"
     + "}";
+};
+
+WDAPI.Driver.prototype.waitForPageToLoad = function() {
+  return "waitForPageToLoad(" + this.ref + ");\n";
 };
 
 WDAPI.Driver.prototype.openWindow = function(url, name) {
