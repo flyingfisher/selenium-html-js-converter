@@ -580,9 +580,10 @@ function formatCommand(command) {
             line = statement(call, command);
           }
         }
-      } else if ('setWindowSize' === command.command) {
-        call = new CallSelenium('setWindowSize');
+      } else if (command.command.match(/setWindowSize|dragAndDrop/)) {
+        call = new CallSelenium(command.command);
         call.rawArgs.push(command.getParameterAt(0));
+        call.rawArgs.push(command.getParameterAt(1));
         line = statement(call, command);
       } else if ('pause' == command.command) {
         line = pause(command.target);
@@ -821,6 +822,12 @@ SeleniumWebDriverAdaptor.prototype.setWindowSize = function() {
 SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function() {
   var driver = new WDAPI.Driver();
   return driver.deleteAllCookies();
+};
+
+SeleniumWebDriverAdaptor.prototype.dragAndDrop = function(elementLocator, offset) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.dragAndDrop(locator, this.rawArgs[1]);
 };
 
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
@@ -1249,7 +1256,7 @@ options.getHeader = function() {
   return '"use strict";\n'
     + "/* jslint node: true */\n\n"
     + "var assert = require('assert');\n\n"
-    + "var browser, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
+    + "var browser, element, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
     + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
     + "browser = _browser;\n"
     + "var acceptNextAlert = true;\n"
@@ -1354,6 +1361,15 @@ WDAPI.Driver.prototype.selectWindow = function(name) {
 
 WDAPI.Driver.prototype.setWindowSize = function(width, height) {
   return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
+};
+
+WDAPI.Driver.prototype.dragAndDrop = function(locator, offset) {
+  offset = offset.split(/[^0-9\-]+/);
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'element.moveTo();\n'
+    + this.ref + '.buttonDown();\n'
+    + 'element.moveTo(' + offset[0] + ',' + offset[1] + ');\n'
+    + this.ref + '.buttonUp();';
 };
 
 WDAPI.Driver.prototype.deleteAllCookies = function() {
