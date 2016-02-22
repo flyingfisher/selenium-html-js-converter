@@ -94,9 +94,9 @@ retry(browser, function () {
 
 The base url is by default extracted from `<link rel="selenium.base" href="${baseURL}" />` from the header of the test files. However, you may want to ignore this value and specify it yourself at conversion time. The Firefox Selenium IDE sets this property when it creates a new text file, and you cannot change it in the IDE afterwards. This is unfortunate if, for instance, you collect test cases from several colleagues, and their `selenium.base` values are either wrong or differing between them.
 
-##### jsfmt
+##### JS Beautify
 
-The generated code is formatted with [jsfmt](https://github.com/rdio/jsfmt). You may override the default formatting options by passing your own via this member object. See [ESFormatter API](https://github.com/millermedeiros/esformatter#api) for syntax and available options.
+The generated code is formatted with [JS Beautify](https://github.com/beautify-web/js-beautify). You may override the default formatting options by passing your own via this member object. See the [JS Beautify options section](https://github.com/beautify-web/js-beautify#user-content-options) for syntax and available options.
 
 #### convertHtml(File|Str)ToJs(File|Str) options
 

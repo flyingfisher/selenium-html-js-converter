@@ -2,7 +2,7 @@
 
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
-var jsfmt = require("jsfmt");
+var jsbute = require('js-beautify').js_beautify;
 
 var log = console;
 log.debug = log.info;
@@ -65,7 +65,7 @@ export function format(testCase, opts) {
 
   result += footer;
   testCase.formatLocal(app.name).footer = footer;
-  return jsfmt.format(result, opts.jsfmt);
+  return jsbute(result, opts.jsBeautifierOptions || { max_preserve_newlines: 2 });
 }
 
 export function setLogger(logger) {
@@ -131,7 +131,7 @@ function formatCommands(commands) {
         line = andWait(line);
       }
       /* For debugging test failures and for screenshotting, we use currentCommand to keep track of what last ran: */
-      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n' + line;
+      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n' + line + '\n';
       command.line = line;
     } else if (command.type == 'comment') {
       line = formatComment(command);

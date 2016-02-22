@@ -7,7 +7,7 @@
     "test": "test"
   },
   "dependencies": {
-    "jsfmt": "^0.4.1",
+    "js-beautify": "*",
     "lodash": "^3.10.0",
     "xml2js": "0.4.4"
   },
