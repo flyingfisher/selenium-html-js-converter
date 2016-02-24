@@ -94,16 +94,16 @@ function formatCommands(commands) {
     var hasAndWaitSuffix;
     for (var i = 0; i < commands.length; i++) {
         command = commands[i];
-        commandName = command.command;
-        hasAndWaitSuffix = !!commandName.match(/AndWait$/);
-        if (hasAndWaitSuffix) {
-            command.command = commandName.replace(/AndWait$/, '');
-        }
         app.currentlyParsingCommand = command;
         if (command.type == 'line') {
             line = command.line;
         }
         else if (command.type == 'command') {
+            commandName = command.command;
+            hasAndWaitSuffix = !!commandName.match(/AndWait$/);
+            if (hasAndWaitSuffix) {
+                command.command = commandName.replace(/AndWait$/, '');
+            }
             line = formatCommand(command);
             /* If retries are enabled, wrap the code block in a retry wrapper, unless the command is of the waiting type */
             if (options.retries && !commandName.match(/(^waitFor)|(AndWait$)/)) {
