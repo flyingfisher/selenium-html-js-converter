@@ -834,6 +834,12 @@ SeleniumWebDriverAdaptor.prototype.dragAndDrop = function(elementLocator, offset
   return driver.dragAndDrop(locator, this.rawArgs[1]);
 };
 
+SeleniumWebDriverAdaptor.prototype.focus = function(elementLocator) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.focus(locator);
+};
+
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
   var driver = new WDAPI.Driver();
   var fileName = this.rawArgs[0];
@@ -1369,6 +1375,11 @@ WDAPI.Driver.prototype.selectWindow = function(name) {
 
 WDAPI.Driver.prototype.setWindowSize = function(width, height) {
   return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
+};
+
+WDAPI.Driver.prototype.focus = function(locator, offset) {
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'browser.execute("arguments[0].focus()", [element]);\n';
 };
 
 WDAPI.Driver.prototype.dragAndDrop = function(locator, offset) {
