@@ -840,6 +840,24 @@ SeleniumWebDriverAdaptor.prototype.focus = function(elementLocator) {
   return driver.focus(locator);
 };
 
+SeleniumWebDriverAdaptor.prototype.keyUp = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keyup', this.rawArgs[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.keyDown = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keydown', this.rawArgs[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.keyPress = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keypress', this.rawArgs[1]);
+};
+
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
   var driver = new WDAPI.Driver();
   var fileName = this.rawArgs[0];
@@ -1377,9 +1395,35 @@ WDAPI.Driver.prototype.setWindowSize = function(width, height) {
   return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
 };
 
-WDAPI.Driver.prototype.focus = function(locator, offset) {
+WDAPI.Driver.prototype.focus = function(locator) {
   return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
     + 'browser.execute("arguments[0].focus()", [element]);\n';
+};
+
+WDAPI.Driver.prototype.keyEvent = function(locator, event, key) {
+  /* If we have a key string, check if it's an escaped ASCII keycode: */
+  if (typeof key === 'string') {
+     var escapedASCII = key.match(/^\\+([0-9]+)$/);
+     if (escapedASCII) {
+       key = escapedASCII[1];
+     } else {
+       /* Otherwise get the code: */
+       key = key.charCodeAt(0);
+     }
+  /* No key at all? Null "key": */
+  } else {
+    key = 0;
+  }
+
+  var code = "var event = window.document.createEvent('KeyboardEvent'); ";
+  code += "if (event.initKeyEvent) ";
+  code += "event.initKeyEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); "
+  code += "else ";
+  code += "event.initKeyboardEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); "
+  code += "return arguments[0].dispatchEvent(event);"
+
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'browser.execute("'+ code + '", [element])';
 };
 
 WDAPI.Driver.prototype.dragAndDrop = function(locator, offset) {
