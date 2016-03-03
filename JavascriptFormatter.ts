@@ -2,121 +2,150 @@
 
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
+var jsbute = require('js-beautify').js_beautify;
+
+var log = console;
+log.debug = log.info;
 
 var app:any = {};
-app.log = console;
-app.log.debug = console.log;
-var log = app.log;
 
 var options:any = {};
 
 /**
  * Format TestCase and return the source.
  *
- * @param testCase TestCase to format
- * @param name     The name of the test case, if any. It may be used to embed title into the source.
- *                 It will also be used to place screenshot files.
+ * @param {string} testCase  TestCase to format
+ * @param {object} opts      Custom options
+ *        {string} .testCaseName
+ *                          The name of the test case. It will be used to embed
+ *                          title into the source, and write screenshot files.
+ *                          Default: 'Untitled'
+ *        {number} .timeout
+ *                          Default number of msecs before timing out in test
+ *                          cases with timeouts, and when creating auto-retrying
+ *                          test cases.
+ *                          Default: 30,000
+ *        {number} .retries
+ *                          How many times to retry test cases when they fail.
+ *                          If retries are enabled, each generated test case
+ *                          will be wrapped in a retry function.
+ *                          Default: 0 (disabled)
+ *
+ * @return {string}         The formatted test case.
  */
-export function format(testCase, name) {
-    app.log.info("Formatting testCase: " + name);
-    var result = '';
-    var header = "";
-    var footer = "";
-    app.commandCharIndex = 0;
+export function format(testCase, opts) {
+  if (!opts || typeof opts !== 'object')
+    opts = {};
 
-    app.testCaseName = name || '';
-    app.screenshotsCount = 0;
+  log.info("Formatting testCase: " + opts.testCaseName);
 
-    header = formatHeader(testCase);
+  var result = '';
+  var header = "";
+  var footer = "";
 
-    result += header;
-    app.commandCharIndex = header.length;
-    testCase.formatLocal(app.name).header = header;
-    result += formatCommands(testCase.commands);
+  app.commandCharIndex = 0;
 
-    footer = formatFooter(testCase);
+  app.testCaseName = opts.testCaseName || '';
+  app.screenshotsCount = 0;
 
-    result += footer;
-    testCase.formatLocal(app.name).footer = footer;
-    return result;
+  options.testCaseName = opts.testCaseName || 'Untitled';
+  options.timeout = typeof opts.timeout === 'number' && !isNaN(opts.timeout) ? opts.timeout : 30000;
+  options.retries = typeof opts.retries === 'number' && !isNaN(opts.retries) ? opts.retries : 0;
+  options.screenshotFolder = 'screenshots/' + app.testCaseName;
+  options.baseUrl = opts.baseUrl || '${baseURL}';
+
+  header = formatHeader(testCase);
+
+  result += header;
+  app.commandCharIndex = header.length;
+  testCase.formatLocal(app.name).header = header;
+  result += formatCommands(testCase.commands);
+
+  footer = formatFooter(testCase);
+
+  result += footer;
+  testCase.formatLocal(app.name).footer = footer;
+  return jsbute(result, opts.jsBeautifierOptions || { max_preserve_newlines: 2 });
 }
 
 export function setLogger(logger) {
   log = logger;
 }
 
-function filterForRemoteControl(originalCommands) {
-    var commands = [];
-    for (var i = 0; i < originalCommands.length; i++) {
-        var c = originalCommands[i];
-        if (c.type == 'command' && c.command.match(/AndWait$/)) {
-            var c1 = c.createCopy();
-            c1.command = c.command.replace(/AndWait$/, '');
-            commands.push(c1);
-            commands.push(new Command("waitForPageToLoad", "options.timeout || " + (options['global.timeout'] || "30000")));
-        } else {
-            commands.push(c);
-        }
-    }
-    if (app.postFilter) {
-        // formats can inject command list post-processing here
-        commands = app.postFilter(commands);
-    }
-    return commands;
+/**
+ * Generates a variable name for storing temporary values in generated scripts.
+ */
+function getTempVarName() {
+  if (!app.tmpVarsCount)
+    app.tmpVarsCount = 1;
+
+  return "var" + app.tmpVarsCount++;
 }
 
-function addIndent(lines) {
-    return lines.replace(/.+/mg, function(str) {
-            return indent() + str;
-        });
+function retryWrap (code) {
+  var wrapped = "withRetry(function () {\n";
+  code.split('\n').forEach(function(line) {
+    wrapped += line + '\n';
+  });
+  wrapped += "});";
+  return wrapped;
+}
+
+function andWait (code) {
+  var wrapped = "doAndWait(function () {\n";
+  code.split('\n').forEach(function(line) {
+    wrapped += line + '\n';
+  });
+  wrapped += "});";
+  return wrapped;
+}
+
+function filterForRemoteControl(commands) {
+  return app.postFilter ? app.postFilter(commands) : commands;
 }
 
 function formatCommands(commands) {
-    commands = filterForRemoteControl(commands);
-    if (app.lastIndent == null) {
-        app.lastIndent = '';
+  commands = filterForRemoteControl(commands);
+  var result = '';
+  var line = null;
+  var command;
+  var commandName;
+  var hasAndWaitSuffix;
+  for (var i = 0; i < commands.length; i++) {
+    command = commands[i];
+    app.currentlyParsingCommand = command;
+    if (command.type == 'line') {
+      line = command.line;
+    } else if (command.type == 'command') {
+      commandName = command.command;
+      hasAndWaitSuffix = !!commandName.match(/AndWait$/);
+      if (hasAndWaitSuffix) {
+        command.command = commandName.replace(/AndWait$/, '');
+      }
+      line = formatCommand(command);
+      /* If retries are enabled, wrap the code block in a retry wrapper, unless the command is of the waiting type */
+      if (options.retries && !commandName.match(/(^waitFor)|(AndWait$)/)) {
+        line = retryWrap(line);
+      /* All *AndWait commands get their own wrapping: */
+      } else if (hasAndWaitSuffix) {
+        line = andWait(line);
+      }
+      /* For debugging test failures and for screenshotting, we use currentCommand to keep track of what last ran: */
+      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n' + line + '\n';
+      command.line = line;
+    } else if (command.type == 'comment') {
+      line = formatComment(command);
+      command.line = line;
     }
-    var result = '';
-    for (var i = 0; i < commands.length; i++) {
-        var line = null;
-        var command = commands[i];
-        app.currentlyParsingCommand = command;
-        if (command.type == 'line') {
-            line = command.line;
-        } else if (command.type == 'command') {
-            line = formatCommand(command);
-            if (line != null) line = addIndent(line);
-            command.line = line;
-        } else if (command.type == 'comment') {
-            line = formatComment(command);
-            if (line != null) line = addIndent(line);
-            command.line = line;
-        }
-        command.charIndex = app.commandCharIndex;
-        if (line != null) {
-            updateIndent(line);
-            line = line + "\n";
-            result += line;
-            app.commandCharIndex += line.length;
-        }
-        app.previouslyParsedCommand = command;
+    command.charIndex = app.commandCharIndex;
+    if (line != null) {
+      line = line + "\n";
+      result += line;
+      app.commandCharIndex += line.length;
     }
-    return result;
-}
-
-function updateIndent(line) {
-    var r = /^(\s*)/.exec(line);
-    if (r) {
-        app.lastIndent = r[1];
-    }
-}
-
-function indent() {
-    return app.lastIndent || '';
-}
-
-function setIndent(i) {
-  app.lastIndent = indents(i);
+    app.previouslyParsedCommand = command;
+  }
+  return result;
 }
 
 /* @override
@@ -127,7 +156,7 @@ function setIndent(i) {
 app.postFilter = function(originalCommands) {
   var commands = [];
   var commandsToSkip = {
-    'waitForPageToLoad' : 1,
+    //'waitForPageToLoad' : 1,
     //'pause': 1
   };
   var rc;
@@ -212,14 +241,13 @@ function formatHeader(testCase) {
   var methodName = testMethodName(className.replace(/Test$/i, "").replace(/^Test/i, "").replace(/^[A-Z]/, function(str) {
     return str.toLowerCase();
   }));
-  var header = (options.getHeader ? options.getHeader() : options.header).
-      replace(/\$\{className\}/g, className).
-      replace(/\$\{methodName\}/g, methodName).
-      replace(/\$\{baseURL\}/g, testCase.getBaseURL()).
-      replace(/\$\{([a-zA-Z0-9_]+)\}/g, function(str, name) {
-        return options[name];
-      });
-  app.lastIndent = indents(parseInt(options.initialIndents, 10));
+  var header = (options.getHeader()).
+    replace(/\$\{className\}/g, className).
+    replace(/\$\{methodName\}/g, methodName).
+    replace(/\$\{baseURL\}/g, testCase.getBaseURL()).
+    replace(/\$\{([a-zA-Z0-9_]+)\}/g, function(str, name) {
+      return options[name];
+    });
   formatLocal.header = header;
   return formatLocal.header;
 }
@@ -228,27 +256,6 @@ function formatFooter(testCase) {
   var formatLocal = testCase.formatLocal(app.name);
   formatLocal.footer = options.footer;
   return formatLocal.footer;
-}
-
-function indents(num) {
-  function repeat(c, n) {
-    var str = "";
-    for (var i = 0; i < n; i++) {
-      str += c;
-    }
-    return str;
-  }
-
-  try {
-    var indent = options.indent;
-    if ('tab' == indent) {
-      return repeat("\t", num);
-    } else {
-      return repeat(" ", num * parseInt(options.indent, 10));
-    }
-  } catch (error) {
-    return repeat(" ", 0);
-  }
 }
 
 function capitalize(string) {
@@ -486,7 +493,7 @@ function string(value) {
   }
 }
 
-var  CallSelenium:any = function(message, args, rawArgs) {
+var CallSelenium:any = function(message, args, rawArgs) {
   this.message = message;
   if (args) {
     this.args = args;
@@ -510,13 +517,10 @@ CallSelenium.prototype.invert = function() {
 
 CallSelenium.prototype.toString = function() {
   log.info('Processing ' + this.message);
-  if (this.message == 'waitForPageToLoad') {
-    return '';
-  }
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
-  if (this.message == 'getEval')
-    adaptor.rawArgs=this.args; // getEval only args available
+  if (this.message.match(/^(getEval|runScript)/))
+    adaptor.rawArgs = this.args; // getEval only args available (Daniel: I assume this means we always want escaped stringified args here; that is, the code as converted to a string, for use with browser.safeEval(<code string>), and getEval may be used elsewhere, so we still want to have that pass forth unescaped rawArgs by default...?)
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
@@ -541,6 +545,7 @@ function formatCommand(command) {
     var eq;
     var method;
     if (command.type == 'command') {
+      /* Definitions are extracted from the iedoc-core.xml doc */
       var def = command.getDefinition();
       if (def && def.isAccessor) {
         call = new CallSelenium(def.name);
@@ -574,8 +579,16 @@ function formatCommand(command) {
             eq = seleniumEquals(def.returnType, extraArg, call);
             if (def.negative) eq = eq.invert();
             line = waitFor(eq);
+          } else if (command.command.match(/^(getEval|runScript)/)) {
+            call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(0));
+            line = statement(call, command);
           }
         }
+      } else if (command.command.match(/setWindowSize|dragAndDrop/)) {
+        call = new CallSelenium(command.command);
+        call.rawArgs.push(command.getParameterAt(0));
+        call.rawArgs.push(command.getParameterAt(1));
+        line = statement(call, command);
       } else if ('pause' == command.command) {
         line = pause(command.target);
       } else if (app.echo && 'echo' == command.command) {
@@ -622,12 +635,12 @@ function formatCommand(command) {
           line = statement(call, command);
         }
       } else {
-        app.log.info("Unknown command: <" + command.command + ">");
+        log.info("Unknown command: <" + command.command + ">");
         throw 'Unknown command [' + command.command + ']';
       }
     }
   } catch(e) {
-    app.log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
+    log.error("Caught exception: [" + e + "]. Stack:\n" + e.stack);
     // TODO
 //    var call = new CallSelenium(command.command);
 //    if ((command.target != null && command.target.length > 0)
@@ -662,15 +675,14 @@ function formatCommand(command) {
 app.remoteControl = true;
 app.playable = false;
 
-function parse_locator(locator)
-{
-    var result = locator.match(/^([A-Za-z]+)=.+/);
-    if (result) {
-        var type = result[1].toLowerCase();
-        var actualLocator = locator.substring(type.length + 1);
-        return { type: type, string: actualLocator };
-    }
-    return { type: 'implicit', string: locator };
+function parse_locator(locator) {
+  var result = locator.match(/^([A-Za-z]+)=.+/);
+  if (result) {
+    var type = result[1].toLowerCase();
+    var actualLocator = locator.substring(type.length + 1);
+    return { type: type, string: actualLocator };
+  }
+  return { type: 'implicit', string: locator };
 }
 
 var SeleniumWebDriverAdaptor:any = function(rawArgs) {
@@ -763,9 +775,7 @@ SeleniumWebDriverAdaptor.prototype.check = function(elementLocator) {
   var locator = this._elementLocator(this.rawArgs[0]);
   var driver = new WDAPI.Driver();
   var webElement = driver.findElement(locator.type, locator.string);
-  return SeleniumWebDriverAdaptor.ifCondition(notOperator() + webElement.isSelected(),
-    indents(1) + webElement.click()
-  );
+  return SeleniumWebDriverAdaptor.ifCondition(notOperator() + webElement.isSelected(), webElement.click());
 };
 
 SeleniumWebDriverAdaptor.prototype.click = function(elementLocator) {
@@ -777,6 +787,11 @@ SeleniumWebDriverAdaptor.prototype.click = function(elementLocator) {
 SeleniumWebDriverAdaptor.prototype.close = function() {
   var driver = new WDAPI.Driver();
   return driver.close();
+};
+
+SeleniumWebDriverAdaptor.prototype.waitForPageToLoad = function() {
+  var driver = new WDAPI.Driver();
+  return driver.waitForPageToLoad();
 };
 
 SeleniumWebDriverAdaptor.prototype.openWindow = function() {
@@ -797,7 +812,50 @@ SeleniumWebDriverAdaptor.prototype.windowFocus = function() {
   if (app.previouslyParsedCommand.command !== 'selectWindow') {
     throw new Error('windowFocus is not supported by wd.');
   }
-  return "/* Ignored windowFocus command, as window focusing is handled implicitly in the previous wd command. */";
+  /* Ignoring windowFocus command, as window focusing is handled implicitly in the previous wd command. */
+  return "";
+};
+
+/* Custom user extension: Resize browser window directly via wd's browser object. */
+SeleniumWebDriverAdaptor.prototype.setWindowSize = function() {
+  var dimensions = this.rawArgs[0].split(/[^0-9]+/);
+  var driver = new WDAPI.Driver();
+  return driver.setWindowSize(dimensions[0], dimensions[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.deleteAllVisibleCookies = function() {
+  var driver = new WDAPI.Driver();
+  return driver.deleteAllCookies();
+};
+
+SeleniumWebDriverAdaptor.prototype.dragAndDrop = function(elementLocator, offset) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.dragAndDrop(locator, this.rawArgs[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.focus = function(elementLocator) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.focus(locator);
+};
+
+SeleniumWebDriverAdaptor.prototype.keyUp = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keyup', this.rawArgs[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.keyDown = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keydown', this.rawArgs[1]);
+};
+
+SeleniumWebDriverAdaptor.prototype.keyPress = function(elementLocator, key) {
+  var locator = this._elementLocator(this.rawArgs[0]);
+  var driver = new WDAPI.Driver();
+  return driver.keyEvent(locator, 'keypress', this.rawArgs[1]);
 };
 
 SeleniumWebDriverAdaptor.prototype.captureEntirePageScreenshot = function() {
@@ -941,9 +999,7 @@ SeleniumWebDriverAdaptor.prototype.uncheck = function(elementLocator) {
   var locator = this._elementLocator(this.rawArgs[0]);
   var driver = new WDAPI.Driver();
   var webElement = driver.findElement(locator.type, locator.string);
-  return SeleniumWebDriverAdaptor.ifCondition(webElement.isSelected(),
-    indents(1) + webElement.click()
-  );
+  return SeleniumWebDriverAdaptor.ifCondition(webElement.isSelected(), webElement.click());
 };
 
 SeleniumWebDriverAdaptor.prototype.select = function(elementLocator, label) {
@@ -952,9 +1008,9 @@ SeleniumWebDriverAdaptor.prototype.select = function(elementLocator, label) {
   return driver.findElement(locator.type, locator.string).select(this._selectLocator(this.rawArgs[1]));
 };
 
-SeleniumWebDriverAdaptor.prototype.getEval = function(script) {
-    var driver = new WDAPI.Driver();
-    return driver.eval(this.rawArgs[0]);
+SeleniumWebDriverAdaptor.prototype.getEval = SeleniumWebDriverAdaptor.prototype.runScript = function(script) {
+  var driver = new WDAPI.Driver();
+  return driver.eval(this.rawArgs[0]);
 };
 
 var WDAPI:any = function() {
@@ -969,10 +1025,7 @@ function useSeparateEqualsForArray() {
 }
 
 function testClassName(testName) {
-  return testName.split(/[^0-9A-Za-z]+/).map(
-      function(x) {
-        return capitalize(x);
-      }).join('');
+  return testName.split(/[^0-9A-Za-z]+/).map(function(x) { return capitalize(x) }).join('');
 }
 
 function testMethodName(testName) {
@@ -984,17 +1037,18 @@ function nonBreakingSpace() {
 }
 
 function array(value) {
-    return JSON.stringify(value);
+  return JSON.stringify(value);
 }
 
 Equals.prototype.toString = function() {
-    return this.e1.toString() + " == " + this.e2.toString();
+  return this.e1.toString() + " === " + this.e2.toString();
 };
 
 Equals.prototype.assert = function() {
-  return "assert.equal(" + this.e1.toString() + ", " + this.e2.toString()
-    + ", 'Assertion error: Expected: " + this.e1.toString() + ", Actual: ' + "
-    + this.e2.toString() + ");";
+  var varA = getTempVarName();
+  var varB = getTempVarName();
+  return "var " + varA + " = " + this.e1.toString() + ";\n" + "var " + varB + " = " + this.e2.toString() + ";\n"
+    + "assert.equal(" + varA + ", " + varB + ", 'Assertion error: Expected: ' + " + varA + " + ', got: ' + " + varB + ");"
 };
 
 Equals.prototype.verify = function() {
@@ -1002,7 +1056,7 @@ Equals.prototype.verify = function() {
 };
 
 NotEquals.prototype.toString = function() {
-  return this.e1.toString() + " != " + this.e2.toString();
+  return this.e1.toString() + " !== " + this.e2.toString();
 };
 
 NotEquals.prototype.assert = function() {
@@ -1016,15 +1070,15 @@ NotEquals.prototype.verify = function() {
 };
 
 function joinExpression(expression) {
-  return expression.toString()+".join(',')";
+  return expression.toString() + ".join(',')";
 }
 
 function statement(expression, command?) {
   var s = expression.toString();
-  if (s.length == 0) {
+  if (s.length === 0) {
     return null;
   }
-  return s + ';';
+  return s.substr(-1) !== ';' && s.substr(-2) !== '*/' ? s + ';' : s;
 }
 
 function assignToVariable(type, variable, expression) {
@@ -1039,21 +1093,21 @@ function ifCondition(expression, callback) {
 function assertTrue(expression) {
   return "assert.strictEqual(!!" + expression.toString() + ", true"
     + ", 'Assertion error: Expected: true, got: ' + "
-    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
+    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand.toString().replace(/"/g, '\\"') + " ]\");";
 }
 
 function assertFalse(expression) {
   return "assert.strictEqual(!!" + expression.toString() + ", false"
     + ", 'Assertion error: Expected: false, got: ' + "
-    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand + " ]\");";
+    + expression.toString() + " + \" [ Command: " + app.currentlyParsingCommand.toString().replace(/"/g, '\\"') + " ]\");";
 }
 
 function verify(statement) {
   return "try {\n" +
-      indents(1) + statement + "\n" +
-      "} catch (e) {\n" +
-      indents(1) + "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
-      "}";
+        statement + "\n" +
+    "} catch (e) {\n" +
+      "options.verificationErrors && options.verificationErrors.push(e.toString());\n" +
+    "}";
 }
 
 function verifyTrue(expression) {
@@ -1065,19 +1119,18 @@ function verifyFalse(expression) {
 }
 
 RegexpMatch.prototype.toString = function() {
-    return this.expression + ".match(" + string(this.pattern) + ")";
+  return this.expression + ".match(" + string(this.pattern) + ")";
 };
 
 function waitFor(expression) {
-    return "waitFor(browser, function(browser){\n"
-        + (expression.setup ? indents(1) + expression.setup() + "\n" : "")
-        + indents(1) + "return " + expression.toString() + ";\n"
-        + indents(0) + "}, '" + expression.toString().replace(/'/g, "\\'")
-        + "', options.timeout || " + (options['global.timeout'] || "30000") + "); \n";
+  return "waitFor(function() {\n"
+    + (expression.setup ? expression.setup() + "\n" : "")
+    + "return " + expression.toString() + ";\n"
+    + "}, '" + expression.toString().replace(/'/g, "\\'") + "');\n";
 }
 
 function assertOrVerifyFailure(line, isAssert) {
-  return "assert.throws(" + line + ");";
+  return "assert.throws(" + line + ")";
 }
 
 function pause(milliseconds) {
@@ -1189,7 +1242,7 @@ app.sendKeysMaping = {
   var suiteClass = /^(\w+)/.exec(filename)[1];
   suiteClass = suiteClass[0].toUpperCase() + suiteClass.substring(1);
 
-  var formattedSuite = indents(0) + "var " + suiteClass + " = { 'tests' : {}};\n";
+  var formattedSuite = "var " + suiteClass + " = { 'tests' : {}};\n";
 
   for (var i = 0; i < testSuite.tests.length; ++i) {
     var testClass = testSuite.tests[i].getTitle();
@@ -1197,30 +1250,28 @@ app.sendKeysMaping = {
   }
 
   formattedSuite += "\n"
-    + indents(0) + suiteClass + ".run = function " + suiteClass + "_run() {\n"
-    + indents(1) + "var webdriver = require('selenium-webdriver');\n"
-    + indents(1) + "\n"
-    + indents(1) + "var driver = new webdriver.Builder().\n"
-    + indents(2) + "withCapabilities(webdriver.Capabilities.firefox()).\n"
-    + indents(2) + "build();\n"
-    + indents(1) + 'var baseUrl = "";\n'
-    + indents(1) + "var acceptNextAlert = true;\n"
-    + indents(1) + "var verificationErrors = [];\n"
-    + indents(1) + "\n"
-    + indents(1) + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
-    + indents(2) + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
-    + indents(1) + "});\n"
-    + indents(0) + "}\n"
-    + indents(1) + "\n"
-    + indents(0) + "module.exports = " + suiteClass + ";\n"
-    + indents(0) + "//" + suiteClass + ".run();";
+    + suiteClass + ".run = function " + suiteClass + "_run() {\n"
+    + "var webdriver = require('selenium-webdriver');\n"
+    + "\n"
+    + "var driver = new webdriver.Builder().\n"
+    + "withCapabilities(webdriver.Capabilities.firefox()).\n"
+    + "build();\n"
+    + 'var baseUrl = "";\n'
+    + "var acceptNextAlert = true;\n"
+    + "var verificationErrors = [];\n"
+    + "\n"
+    + "Object.keys(" + suiteClass + ".tests).forEach(function (v,k,a) {\n"
+    + suiteClass + ".tests[v](webdriver, driver, baseUrl, acceptNextAlert, verificationErrors);\n"
+    + "});\n"
+    + "}\n"
+    + "\n"
+    + "module.exports = " + suiteClass + ";\n"
+    + "//" + suiteClass + ".run();";
 
   return formattedSuite;
 }*/
 
 options = {
-  indent: '4',
-  initialIndents: '1',
   showSelenese: 'false',
   defaultExtension: "js"
 };
@@ -1229,17 +1280,35 @@ function defaultExtension() {
   return options.defaultExtension;
 }
 
-options.header = "module.exports = function ${methodName} (browser, options)  {\n\n"
-    + indents(1) + "if (!options) options = {};\n"
-    + indents(1) + "if (!options.lbParam) options.lbParam = {vuSn: 1};\n"
-    + indents(1) + "var assert = require('assert');\n"
-    + indents(1) + 'var baseUrl = "${baseURL}";\n'
-    + indents(1) + "var acceptNextAlert = true;\n";
+options.getHeader = function() {
+  return '"use strict";\n'
+    + "/* jslint node: true */\n\n"
+    + "var assert = require('assert');\n\n"
+    + "var browser, element, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
+    + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
+    + "browser = _browser;\n"
+    + "var acceptNextAlert = true;\n"
+    + "getRuntimeOptions(_options);\n"
+    + "var currentCommand = '';\n\n"
+    + "try {\n";
+};
 
 var fs = require("fs");
 var ideFunc = fs.readFileSync(__dirname+"/selenium-utils.js","utf-8");
 
-options.footer = "\n};\n\n" + ideFunc;
+options.footer = "} catch(e) {\n"
+  + "var failedScreenShot = options.screenshotFolder + '/Exception@' + currentCommand.replace(/\\(.+/, '') + '.png';\n"
+  + "try {\n"
+  + "createFolderPath(options.screenshotFolder);\n"
+  + "browser.saveScreenshot(failedScreenShot);\n"
+  + "} catch (e) {\n"
+  + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Could not save screenshot after failure occured)';\n"
+  + "throw e;\n"
+  + "}\n"
+  + "e.message = 'Failure in Selenium command \"' + currentCommand + '\": ' + e.message + ' (Screenshot was saved to ' + failedScreenShot + ')';\n"
+  + "throw e;\n"
+  + "}\n"
+  + "\n};\n\n" + ideFunc;
 
 /* no used in node, but should be used in selenium-ide, obsoleted
 app.configForm =
@@ -1302,20 +1371,72 @@ WDAPI.Driver.prototype.back = function() {
  */
 WDAPI.Driver.prototype.close = function() {
   return "if (browser.windowHandles().length > 1) {\n"
-      + indents(1) + this.ref + ".close();\n"
-      + indents(1) + "refocusWindow(" + this.ref + ");\n"
-      + indents(0) + "}";
+    + this.ref + ".close();\n"
+    + "refocusWindow();\n"
+    + "}";
+};
+
+WDAPI.Driver.prototype.waitForPageToLoad = function() {
+  return "waitForPageToLoad(" + this.ref + ");\n";
 };
 
 WDAPI.Driver.prototype.openWindow = function(url, name) {
   url = url ? "'" + url + "'" : "null";
   name = name ? "'" + name + "'" : "null";
-  return this.ref + ".newWindow(" + url + ", " + name + ")";
+  return this.ref + ".newWindow(addBaseUrl(" + url + "), " + name + ")";
 };
 
 WDAPI.Driver.prototype.selectWindow = function(name) {
   name = name ? "'" + name + "'" : "null";
   return this.ref + ".window(" + name + ")";
+};
+
+WDAPI.Driver.prototype.setWindowSize = function(width, height) {
+  return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
+};
+
+WDAPI.Driver.prototype.focus = function(locator) {
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'browser.execute("arguments[0].focus()", [element]);\n';
+};
+
+WDAPI.Driver.prototype.keyEvent = function(locator, event, key) {
+  /* If we have a key string, check if it's an escaped ASCII keycode: */
+  if (typeof key === 'string') {
+     var escapedASCII = key.match(/^\\+([0-9]+)$/);
+     if (escapedASCII) {
+       key = escapedASCII[1];
+     } else {
+       /* Otherwise get the code: */
+       key = key.charCodeAt(0);
+     }
+  /* No key at all? Null "key": */
+  } else {
+    key = 0;
+  }
+
+  var code = "var event = window.document.createEvent('KeyboardEvent'); ";
+  code += "if (event.initKeyEvent) ";
+  code += "event.initKeyEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); "
+  code += "else ";
+  code += "event.initKeyboardEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); "
+  code += "return arguments[0].dispatchEvent(event);"
+
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'browser.execute("'+ code + '", [element])';
+};
+
+WDAPI.Driver.prototype.dragAndDrop = function(locator, offset) {
+  offset = offset.split(/[^0-9\-]+/);
+  return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
+    + 'element.moveTo();\n'
+    + this.ref + '.buttonDown();\n'
+    + 'element.moveTo(' + offset[0] + ',' + offset[1] + ');\n'
+    + this.ref + '.buttonUp();';
+};
+
+WDAPI.Driver.prototype.deleteAllCookies = function() {
+  return this.ref + '.deleteAllCookies()';
 };
 
 WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
@@ -1328,10 +1449,11 @@ WDAPI.Driver.prototype.captureEntirePageScreenshot = function(fileName) {
     fileName = fileName.replace(/.+[/\\]([^/\\]+)$/, '$1').replace(/\.(png|jpg|jpeg|bmp|tif|tiff|gif)/i, '');
   }
 
-  return 'var screenshotFolder = options.screenshotFolder ? options.screenshotFolder : "' + screenshotFolder + '";\n'
-      + indents(0) + 'var screenshotFile = "' + fileName + '.png";\n'
-      + indents(0) + 'createFolderPath(screenshotFolder);\n'
-      + indents(0) + this.ref + '.saveScreenshot(screenshotFolder + "/" + screenshotFile)';
+  var screenshotFileVar = getTempVarName();
+
+  return 'var ' + screenshotFileVar + ' = "' + fileName + '.png";\n'
+    + 'createFolderPath(options.screenshotFolder);\n'
+    + this.ref + '.saveScreenshot(options.screenshotFolder + "/" + ' + screenshotFileVar + ')';
 };
 
 WDAPI.Driver.prototype.findElement = function(locatorType, locator) {
@@ -1339,7 +1461,7 @@ WDAPI.Driver.prototype.findElement = function(locatorType, locator) {
 };
 
 WDAPI.Driver.prototype.findElements = function(locatorType, locator) {
-  return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element","elements"));
+  return new WDAPI.ElementList(WDAPI.Driver.searchContext(locatorType, locator).replace("element", "elements"));
 };
 
 WDAPI.Driver.prototype.getCurrentUrl = function() {
@@ -1347,11 +1469,7 @@ WDAPI.Driver.prototype.getCurrentUrl = function() {
 };
 
 WDAPI.Driver.prototype.get = function(url) {
-  if (url.length > 1 && (url.substring(1,8) == "http://" || url.substring(1,9) == "https://")) { // url is quoted
-    return this.ref + ".get(" + url + ")";
-  } else {
-    return this.ref + ".get(addUrl(baseUrl, " + url + "))";
-  }
+  return this.ref + ".get(addBaseUrl(" + url + "))";
 };
 
 WDAPI.Driver.prototype.getTitle = function() {
@@ -1359,8 +1477,8 @@ WDAPI.Driver.prototype.getTitle = function() {
 };
 
 WDAPI.Driver.prototype.getAlert = function() {
-    return "closeAlertAndGetItsText(browser, acceptNextAlert);\n"
-        + "acceptNextAlert = true";
+  return "closeAlertAndGetItsText(acceptNextAlert);\n"
+    + "acceptNextAlert = true";
 };
 
 WDAPI.Driver.prototype.chooseOkOnNextConfirmation = function() {
@@ -1376,7 +1494,7 @@ WDAPI.Driver.prototype.refresh = function() {
 };
 
 WDAPI.Driver.prototype.eval = function(script) {
-    return this.ref + ".safeEval(" + script + ")";
+  return this.ref + ".safeEval(" + script + ")";
 };
 
 WDAPI.Element = function(ref) {
@@ -1417,10 +1535,10 @@ WDAPI.Element.prototype.submit = function() {
 
 WDAPI.Element.prototype.select = function(selectLocator) {
   if (selectLocator.type == 'index') {
-      return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
+    return this.ref + ".elementByXPath('option[" + ((parseInt(selectLocator.string) + 1) || 1) + "]').click()";
   }
   if (selectLocator.type == 'value') {
-      return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
+    return this.ref + ".elementByXPath('option[@value=" + xlateArgument(selectLocator.string) + "][1]').click()";
   }
   return this.ref + ".elementByXPath('option[text()=" + xlateArgument(selectLocator.string) + "][1]').click()";
 };
@@ -1449,5 +1567,5 @@ WDAPI.Utils.isElementPresent = function(how, what) {
 };
 
 WDAPI.Utils.isAlertPresent = function() {
-  return "isAlertPresent(browser)";
+  return "isAlertPresent()";
 };
