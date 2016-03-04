@@ -1272,31 +1272,22 @@ WDAPI.Driver.prototype.setWindowSize = function (width, height) {
 };
 WDAPI.Driver.prototype.focus = function (locator) {
     return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
-        + 'browser.execute("arguments[0].focus()", [element]);\n';
+        + 'browser.execute("arguments[0].focus()", [element.rawElement]);\n';
 };
 WDAPI.Driver.prototype.keyEvent = function (locator, event, key) {
+    var code = 0;
     /* If we have a key string, check if it's an escaped ASCII keycode: */
     if (typeof key === 'string') {
         var escapedASCII = key.match(/^\\+([0-9]+)$/);
         if (escapedASCII) {
-            key = escapedASCII[1];
+            code = +escapedASCII[1];
         }
         else {
             /* Otherwise get the code: */
-            key = key.charCodeAt(0);
+            code = key.charCodeAt(0);
         }
     }
-    else {
-        key = 0;
-    }
-    var code = "var event = window.document.createEvent('KeyboardEvent'); ";
-    code += "if (event.initKeyEvent) ";
-    code += "event.initKeyEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); ";
-    code += "else ";
-    code += "event.initKeyboardEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); ";
-    code += "return arguments[0].dispatchEvent(event);";
-    return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
-        + 'browser.execute("' + code + '", [element])';
+    return 'keyEvent(' + WDAPI.Driver.searchContext(locator.type, locator.string) + ', "' + event + '", ' + code + ');';
 };
 WDAPI.Driver.prototype.dragAndDrop = function (locator, offset) {
     offset = offset.split(/[^0-9\-]+/);

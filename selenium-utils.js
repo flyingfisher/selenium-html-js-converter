@@ -256,3 +256,34 @@ function withRetry (code, wdBrowser, retries, timeout) {
 
     throw(err);
 }
+
+
+
+
+/**
+ * Triggers a keyboard event on the provided wd browser element.
+ *
+ * @param    {WD Element} element Target DOM element to trigger the event on
+ * @param    {string}     event   Keyboard event (keyup|keydown|keypress)
+ * @param    {keyCode}    key     Charcode to use
+ * @return   {void}
+ */
+function keyEvent (element, event, keyCode) {
+    browser.execute(functionBody(function () {
+        var element = arguments[0];
+        var event = arguments[1];
+        var keyCode = arguments[2];
+        var ev = window.document.createEvent('KeyboardEvent');
+        if (ev.initKeyEvent)
+            ev.initKeyEvent(event, true, true, window, 0, 0, 0, 0, 0, keyCode);
+        else
+            ev.initKeyboardEvent(event, true, true, window, 0, 0, 0, 0, 0, keyCode);
+        return element.dispatchEvent(ev);
+    }), [element.rawElement, event, keyCode]);
+}
+
+
+
+function functionBody (func) {
+    return func.toString().replace(/^function[^{]+{/, '').replace(/}[^}]*$/, '');
+}
