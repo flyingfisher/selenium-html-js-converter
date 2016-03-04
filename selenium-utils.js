@@ -17,7 +17,7 @@ function doAndWait (code, wdBrowser) {
     wdBrowser.execute('document.body.className += " SHTML2JSC"');
     code();
     withRetry(function () {
-        if (wdBrowser.execute("return document.readyState") !== 'complete'  || wdBrowser.hasElementByCssSelector('body.SHTML2JSC'))
+        if (wdBrowser.execute("return document.readyState") !== 'complete' || wdBrowser.hasElementByCssSelector('body.SHTML2JSC'))
             throw new Error('Page did not load in time');
     }, wdBrowser);
 }

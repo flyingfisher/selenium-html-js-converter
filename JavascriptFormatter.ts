@@ -3,6 +3,7 @@
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
 var jsbute = require('js-beautify').js_beautify;
+var fs = require('fs');
 
 var log = console;
 log.debug = log.info;
@@ -30,6 +31,9 @@ var options:any = {};
  *                          If retries are enabled, each generated test case
  *                          will be wrapped in a retry function.
  *                          Default: 0 (disabled)
+ *        {string} .extensions
+ *                          User extensions javascript file:
+ *                          Default: __dirname + 'extensions/user-extensions.js'
  *
  * @return {string}         The formatted test case.
  */
@@ -42,6 +46,7 @@ export function format(testCase, opts) {
   var result = '';
   var header = "";
   var footer = "";
+  var extension, extensions = opts.extensions || __dirname + '/extensions/user-extensions.js';
 
   app.commandCharIndex = 0;
 
@@ -54,6 +59,16 @@ export function format(testCase, opts) {
   options.screenshotFolder = 'screenshots/' + app.testCaseName;
   options.baseUrl = opts.baseUrl || '${baseURL}';
 
+  options.extensions = {};
+  log.info('Importing user extensions from %s ...', extensions);
+  extensions = require(extensions);
+  for (extension in extensions) {
+    if (extensions.hasOwnProperty(extension)) {
+    log.info('Adding command %s', extension);
+      options.extensions[extension] = extensions[extension];
+    }
+  }
+
   header = formatHeader(testCase);
 
   result += header;
@@ -63,6 +78,10 @@ export function format(testCase, opts) {
 
   footer = formatFooter(testCase);
 
+  footer += '\n\n/* User extensions */\n\n'
+  for (extension in options.extensions) {
+    footer += options.extensions[extension].toString().replace(/^function/, 'function ' + extension) + '\n\n';
+  }
   result += footer;
   testCase.formatLocal(app.name).footer = footer;
   return jsbute(result, opts.jsBeautifierOptions || { max_preserve_newlines: 2 });
@@ -634,6 +653,14 @@ function formatCommand(command) {
           }
           line = statement(call, command);
         }
+      } else if (options.extensions[command.command]) {
+        var commandName = command.command;
+        command.command = 'userCommand';
+        call = new CallSelenium(command.command);
+        call.rawArgs.push(command.getParameterAt(0));
+        call.rawArgs.push(command.getParameterAt(1));
+        call.rawArgs.push(commandName);
+        line = statement(call, command);
       } else {
         log.info("Unknown command: <" + command.command + ">");
         throw 'Unknown command [' + command.command + ']';
@@ -805,6 +832,17 @@ SeleniumWebDriverAdaptor.prototype.selectWindow = function() {
   var driver = new WDAPI.Driver();
   var name = this.rawArgs[0];
   return driver.selectWindow(name);
+};
+
+SeleniumWebDriverAdaptor.prototype.userCommand = function() {
+    var driver = new WDAPI.Driver();
+    var commandName = this.rawArgs[2];
+    var locator;
+    try {
+        locator = this._elementLocator(this.rawArgs[0]);
+        locator = WDAPI.Driver.searchContext(locator.type, locator.string)
+    } catch (ignore) { }
+    return driver.userCommand(commandName, this.rawArgs[0], this.rawArgs[1], locator);
 };
 
 /* wd does not support the windowFocus command. window(), called by selectWindow, both selects and focuses a window, so if the previously parsed command was selectWindow, we should be good. */
@@ -1391,6 +1429,12 @@ WDAPI.Driver.prototype.openWindow = function(url, name) {
 WDAPI.Driver.prototype.selectWindow = function(name) {
   name = name ? "'" + name + "'" : "null";
   return this.ref + ".window(" + name + ")";
+};
+
+WDAPI.Driver.prototype.userCommand = function(command, target, value, locator) {
+    target = '"' + ('' + target).replace(/"/g, '\\"') + '"';
+    value = '"' + ('' + value).replace(/"/g, '\\"') + '"';
+    return command + '(' + target + ', ' + value + ', ' + locator + ')\n';
 };
 
 WDAPI.Driver.prototype.setWindowSize = function(width, height) {
