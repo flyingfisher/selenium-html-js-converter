@@ -1212,7 +1212,7 @@ options.getHeader = function () {
     return '"use strict";\n'
         + "/* jslint node: true */\n\n"
         + "var assert = require('assert');\n\n"
-        + "var browser, element, currentCommand = '', options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
+        + "var browser, lbParam, element, currentCommand = '', options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
         + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
         + "browser = _browser;\n"
         + "var acceptNextAlert = true;\n"
