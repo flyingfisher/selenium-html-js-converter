@@ -580,7 +580,7 @@ function formatCommand(command) {
             if (def.negative) eq = eq.invert();
             line = waitFor(eq);
           } else if (command.command.match(/^(getEval|runScript)/)) {
-            call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(0));
+            call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(1));
             line = statement(call, command);
           }
         }
@@ -1142,6 +1142,9 @@ function echo(message) {
 }
 
 function formatComment(comment) {
+  /* Some people tend to write Selenium comments as JS block comments, so check if that's the case first, or we'll end up with a broken script: */
+  if (comment.comment.match(/^\/\*.+\*\//))
+    return comment.comment;
   return comment.comment.replace(/.+/mg, function(str) {
     return "/* " + str + " */";
   });
