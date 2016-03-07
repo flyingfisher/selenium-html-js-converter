@@ -1051,11 +1051,6 @@ SeleniumWebDriverAdaptor.prototype.getEval = SeleniumWebDriverAdaptor.prototype.
   return driver.eval(this.rawArgs[0]);
 };
 
-SeleniumWebDriverAdaptor.prototype.runScript = function(script) {
-    var driver = new WDAPI.Driver();
-    return driver.eval(this.rawArgs[0]);
-};
-
 var WDAPI:any = function() {
 }
 
