@@ -539,7 +539,7 @@ CallSelenium.prototype.toString = function() {
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
   if (this.message.match(/^(getEval|runScript)/))
-    adaptor.rawArgs = this.args; // getEval only args available (Daniel: I assume this means we always want escaped stringified args here; that is, the code as converted to a string, for use with browser.safeEval(<code string>), and getEval may be used elsewhere, so we still want to have that pass forth unescaped rawArgs by default...?)
+    adaptor.rawArgs = this.rawArgs || this.args; 
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
@@ -599,7 +599,7 @@ function formatCommand(command) {
             if (def.negative) eq = eq.invert();
             line = waitFor(eq);
           } else if (command.command.match(/^(getEval|runScript)/)) {
-            call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(1));
+            call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(0));
             line = statement(call, command);
           }
         }
@@ -1325,12 +1325,11 @@ options.getHeader = function() {
   return '"use strict";\n'
     + "/* jslint node: true */\n\n"
     + "var assert = require('assert');\n\n"
-    + "var browser, lbParam, element, currentCommand = '', options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
+    + "var browser, element, currentCommand = '', options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', baseUrl: '" + options.baseUrl + "' };\n\n"
     + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
     + "browser = _browser;\n"
     + "var acceptNextAlert = true;\n"
     + "getRuntimeOptions(_options);\n"
-    + "lbParam = options.lbParam;\n"
     + "try {\n";
 };
 
