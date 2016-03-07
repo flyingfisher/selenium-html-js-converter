@@ -16,10 +16,10 @@ var converter = require("selenium-html-js-converter");
 converter.convertHtmlFileToJsFile(YourHtmlFile, OutJsFile[, options]);
 ```
 
-Before you run the javascript, you need to install [wd-sync](https://github.com/sebv/node-wd-sync), which is used in the test case.
+Before you run the javascript, you need to install [wd-sync-raw](https://github.com/DanielSmedegaardBuus/node-wd-sync), which is used in the test case.
 
 ```sh
-    $ npm install wd-sync
+    $ npm install wd-sync-raw
 ```
 
 ### To run the javascript
