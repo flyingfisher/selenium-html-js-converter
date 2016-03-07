@@ -2,6 +2,7 @@
 var Command = require("./testCase").Command;
 var Comment = require("./testCase").Comment;
 var jsbute = require('js-beautify').js_beautify;
+var fs = require('fs');
 var log = console;
 log.debug = log.info;
 var app = {};
@@ -25,6 +26,9 @@ var options = {};
  *                          If retries are enabled, each generated test case
  *                          will be wrapped in a retry function.
  *                          Default: 0 (disabled)
+ *        {string} .extensions
+ *                          User extensions javascript file:
+ *                          Default: __dirname + 'extensions/user-extensions.js'
  *
  * @return {string}         The formatted test case.
  */
@@ -35,6 +39,7 @@ function format(testCase, opts) {
     var result = '';
     var header = "";
     var footer = "";
+    var extension, extensions = opts.extensions || __dirname + '/extensions/user-extensions.js';
     app.commandCharIndex = 0;
     app.testCaseName = opts.testCaseName || '';
     app.screenshotsCount = 0;
@@ -43,12 +48,25 @@ function format(testCase, opts) {
     options.retries = typeof opts.retries === 'number' && !isNaN(opts.retries) ? opts.retries : 0;
     options.screenshotFolder = 'screenshots/' + app.testCaseName;
     options.baseUrl = opts.baseUrl || '${baseURL}';
+    options.extensions = {};
+    log.info('Importing user extensions from %s ...', extensions);
+    extensions = require(extensions);
+    for (extension in extensions) {
+        if (extensions.hasOwnProperty(extension)) {
+            log.info('Adding command %s', extension);
+            options.extensions[extension] = extensions[extension];
+        }
+    }
     header = formatHeader(testCase);
     result += header;
     app.commandCharIndex = header.length;
     testCase.formatLocal(app.name).header = header;
     result += formatCommands(testCase.commands);
     footer = formatFooter(testCase);
+    footer += '\n\n/* User extensions */\n\n';
+    for (extension in options.extensions) {
+        footer += options.extensions[extension].toString().replace(/^function/, 'function ' + extension) + '\n\n';
+    }
     result += footer;
     testCase.formatLocal(app.name).footer = footer;
     return jsbute(result, opts.jsBeautifierOptions || { max_preserve_newlines: 2 });
@@ -544,7 +562,7 @@ function formatCommand(command) {
                         line = waitFor(eq);
                     }
                     else if (command.command.match(/^(getEval|runScript)/)) {
-                        call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(0));
+                        call = new CallSelenium(def.name, xlateArgument(command.getParameterAt(0)), command.getParameterAt(1));
                         line = statement(call, command);
                     }
                 }
@@ -604,6 +622,15 @@ function formatCommand(command) {
                     }
                     line = statement(call, command);
                 }
+            }
+            else if (options.extensions[command.command]) {
+                var commandName = command.command;
+                command.command = 'userCommand';
+                call = new CallSelenium(command.command);
+                call.rawArgs.push(command.getParameterAt(0));
+                call.rawArgs.push(command.getParameterAt(1));
+                call.rawArgs.push(commandName);
+                line = statement(call, command);
             }
             else {
                 log.info("Unknown command: <" + command.command + ">");
@@ -763,6 +790,17 @@ SeleniumWebDriverAdaptor.prototype.selectWindow = function () {
     var driver = new WDAPI.Driver();
     var name = this.rawArgs[0];
     return driver.selectWindow(name);
+};
+SeleniumWebDriverAdaptor.prototype.userCommand = function () {
+    var driver = new WDAPI.Driver();
+    var commandName = this.rawArgs[2];
+    var locator;
+    try {
+        locator = this._elementLocator(this.rawArgs[0]);
+        locator = WDAPI.Driver.searchContext(locator.type, locator.string);
+    }
+    catch (ignore) { }
+    return driver.userCommand(commandName, this.rawArgs[0], this.rawArgs[1], locator);
 };
 /* wd does not support the windowFocus command. window(), called by selectWindow, both selects and focuses a window, so if the previously parsed command was selectWindow, we should be good. */
 SeleniumWebDriverAdaptor.prototype.windowFocus = function () {
@@ -1037,6 +1075,9 @@ function echo(message) {
     return "console.log(" + xlateArgument(message) + ");";
 }
 function formatComment(comment) {
+    /* Some people tend to write Selenium comments as JS block comments, so check if that's the case first, or we'll end up with a broken script: */
+    if (comment.comment.match(/^\/\*.+\*\//))
+        return comment.comment;
     return comment.comment.replace(/.+/mg, function (str) {
         return "/* " + str + " */";
     });
@@ -1170,13 +1211,12 @@ options.getHeader = function () {
     return '"use strict";\n'
         + "/* jslint node: true */\n\n"
         + "var assert = require('assert');\n\n"
-        + "var browser, lbParam, element, options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
+        + "var browser, lbParam, element, currentCommand = '', options = { timeout: " + options.timeout + ", retries: " + options.retries + ", screenshotFolder: '" + options.screenshotFolder + "', lbParam: {vuSn: 1}, baseUrl: '" + options.baseUrl + "' };\n\n"
         + "module.exports = function ${methodName} (_browser, _options)  {\n\n"
         + "browser = _browser;\n"
         + "var acceptNextAlert = true;\n"
         + "getRuntimeOptions(_options);\n"
         + "lbParam = options.lbParam;\n"
-        + "var currentCommand = '';\n\n"
         + "try {\n";
 };
 var fs = require("fs");
@@ -1266,36 +1306,32 @@ WDAPI.Driver.prototype.selectWindow = function (name) {
     name = name ? "'" + name + "'" : "null";
     return this.ref + ".window(" + name + ")";
 };
+WDAPI.Driver.prototype.userCommand = function (command, target, value, locator) {
+    target = '"' + ('' + target).replace(/"/g, '\\"') + '"';
+    value = '"' + ('' + value).replace(/"/g, '\\"') + '"';
+    return command + '(' + target + ', ' + value + ', ' + locator + ')\n';
+};
 WDAPI.Driver.prototype.setWindowSize = function (width, height) {
     return this.ref + '.setWindowSize(' + width + ', ' + height + ')';
 };
 WDAPI.Driver.prototype.focus = function (locator) {
     return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
-        + 'browser.execute("arguments[0].focus()", [element]);\n';
+        + 'browser.execute("arguments[0].focus()", [element.rawElement]);\n';
 };
 WDAPI.Driver.prototype.keyEvent = function (locator, event, key) {
+    var code = 0;
     /* If we have a key string, check if it's an escaped ASCII keycode: */
     if (typeof key === 'string') {
         var escapedASCII = key.match(/^\\+([0-9]+)$/);
         if (escapedASCII) {
-            key = escapedASCII[1];
+            code = +escapedASCII[1];
         }
         else {
             /* Otherwise get the code: */
-            key = key.charCodeAt(0);
+            code = key.charCodeAt(0);
         }
     }
-    else {
-        key = 0;
-    }
-    var code = "var event = window.document.createEvent('KeyboardEvent'); ";
-    code += "if (event.initKeyEvent) ";
-    code += "event.initKeyEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); ";
-    code += "else ";
-    code += "event.initKeyboardEvent('" + event + "', true, true, window, 0, 0, 0, 0, 0, " + key + "); ";
-    code += "return arguments[0].dispatchEvent(event);";
-    return 'element = ' + WDAPI.Driver.searchContext(locator.type, locator.string) + ';\n'
-        + 'browser.execute("' + code + '", [element])';
+    return 'keyEvent(' + WDAPI.Driver.searchContext(locator.type, locator.string) + ', "' + event + '", ' + code + ');';
 };
 WDAPI.Driver.prototype.dragAndDrop = function (locator, offset) {
     offset = offset.split(/[^0-9\-]+/);
