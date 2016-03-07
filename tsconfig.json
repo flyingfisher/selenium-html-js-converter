@@ -1,9 +1,10 @@
 {
-	"compilerOptions": {
-		"target": "ES5",
-		"module": "commonjs"
-	},
-	"exclude":[
-		"./node_modules/**"
-	]
+    "compilerOptions": {
+        "target": "es5",
+        "module": "commonjs",
+        "noImplicitUseStrict": true
+    },
+    "files": [
+        "JavascriptFormatter.ts"
+    ]
 }

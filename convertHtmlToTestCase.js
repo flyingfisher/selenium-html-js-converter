@@ -35,10 +35,10 @@ function decodeText(text) {
                 return str;
             }
         });
-    text = text.replace(/&#(\d+);/g, function(str, p1) { 
+    text = text.replace(/&#(\d+);/g, function(str, p1) {
             return String.fromCharCode(parseInt(p1));
         });
-    text = text.replace(/&#x([0-9a-f]+);/gi, function(str, p1) { 
+    text = text.replace(/&#x([0-9a-f]+);/gi, function(str, p1) {
             return String.fromCharCode(parseInt(p1, 16));
         });
     text = text.replace(/ +/g, " "); // truncate multiple spaces to single space
@@ -89,6 +89,10 @@ function convertText(command, converter) {
 		command[prop] = converter(command[prop]);
 	}
 }
+
+exports.setLogger = function (logger) {
+	log = logger;
+};
 
 /**
  * Parse source and update TestCase. Throw an exception if any error occurs.
@@ -178,7 +182,7 @@ function matchTemplateAndExtractVars(doc, template) {
 	var templateVars = {};
 	var captureVar;
 	var matchIndex = 0;
-		
+
 	for (var i=0; i<matchTextRa.length; i++) {
 		var matchedVar = matchTextRa[i].match(/\$\{(\w+)\}/i);
 		if (matchedVar) {
@@ -190,7 +194,7 @@ function matchTemplateAndExtractVars(doc, template) {
 				//variable capture required
 				if (captureVar) {
 					//Error: Capture failed as there is no way to delimit adjacent variables without static text between them
-					log.debug("Error: Capture failed as there is no way to delimit adjacent variables without static text between them");
+					log.error("Error: Capture failed as there is no way to delimit adjacent variables without static text between them");
 					return null;
 				}
 				captureVar = matchedVar[1];
@@ -201,14 +205,14 @@ function matchTemplateAndExtractVars(doc, template) {
 		if (captureVar) {
 			//search for static string
 			var index = doc.indexOf(matchTextRa[i], matchIndex);
-			if (index >= 0) {			
+			if (index >= 0) {
 				//matched
 				templateVars[captureVar] = [doc.substring(matchIndex, index), matchIndex];
 				matchIndex = matchTextRa[i].length + index;
 				captureVar = null;
 			}else {
 				//Error: Match failed
-				log.debug("Error: Match failed");
+				log.error("Error: Match failed");
 				return null;
 			}
 		}else {
@@ -218,7 +222,7 @@ function matchTemplateAndExtractVars(doc, template) {
 				matchIndex += matchTextRa[i].length;
 			}else {
 				//Error:  Match failed
-				log.debug("Error: Match failed");
+				log.error("Error: Match failed");
 				return null;
 			}
 		}
@@ -244,7 +248,7 @@ function getSourceForCommand(commandObj) {
 		template = options.commentTemplate;
 	}
 	var result;
-	var text = template.replace(/\$\{([a-zA-Z0-9_\.]+)\}/g, 
+	var text = template.replace(/\$\{([a-zA-Z0-9_\.]+)\}/g,
         function(str, p1, offset, s) {
             result = eval(p1);
             return result != null ? result : '';
@@ -279,12 +283,12 @@ function format(testCase, name) {
 	var commandsText = "";
 	var testText;
 	var i;
-	
+
 	for (i = 0; i < testCase.commands.length; i++) {
 		var text = getSourceForCommand(testCase.commands[i]);
 		commandsText = commandsText + text;
 	}
-	
+
 	var testText;
 	if (testCase.header == null || testCase.footer == null) {
 		testText = options.testTemplate;
@@ -302,7 +306,7 @@ function format(testCase, name) {
 	} else {
 		testText = testCase.header + commandsText + testCase.footer;
 	}
-	
+
 	return testText;
 }
 
@@ -321,7 +325,7 @@ var options = {
 	"\\s*<td\s*[^>]*>([\\d\\D]*?)</td>" +
 	"\\s*(<td\s*/>|<td\s*[^>]*>([\\d\\D]*?)</td>)" +
 	"\\s*</tr>\\s*",
-	
+
 	commandLoadScript:
 	"command.command = result[2];\n" +
 	"command.target = result[3];\n" +
@@ -361,17 +365,17 @@ var options = {
 
 	commentTemplate:
 	"<!--${comment.comment}-->\n",
-	
+
 	escapeDollar:
 	"false",
-	
+
 	defaultExtension: "html"
 };
 
 /*
  * Optional: XUL XML String for the UI of the options dialog
  */
-var configForm = 
+var configForm =
 	//'<tabbox flex="1"><tabs orient="horizontal"><tab label="Load"/><tab label="Save"/></tabs>' +
 	//'<tabpanels flex="1">' +
 	//'<tabpanel orient="vertical">' +
