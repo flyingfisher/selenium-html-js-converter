@@ -20,6 +20,10 @@
  * WD functions are included with the generated js cases.
  *
  * FYI: Example functions here do not attempt support for IE8 and lower.
+ *
+ * Inspiration:
+ *   https://raw.githubusercontent.com/refactoror/SelBlocks/master/user-extensions.js
+ *
  */
 
 /* We should be loadable in Node.js as well as the Selenium IDE, so don't assume that neither [module] nor [Selenium] is defined: */
@@ -57,46 +61,44 @@ Selenium.prototype.doSetWindowSize = function (target, value) {
 
 
 /**
- * Worst ever hack to do sendKeys-ish typing on a Redactor editor (possibly
- * other contenteditable-based RTEs). Requires jQuery in the app, and works
- * with CSS locators only.
+ * Funky hack to do sendKeys-ish typing on a Redactor editor (possibly other
+ * contenteditable-based RTEs as well ).
  *
- * @throws   when element locator isn't /^css=/ or element was not found
+ * @throws   on element not found
  *
- * @version  2016-02-25
+ * @version  2016-03-07
  * @since    2016-02-25
  *
- * @todo     Make non-jQuery dependent, create wd counterpart
- * @note
+ * @note     introduces a 100 msec delay (needed to allow Redactor to react on
+ *           and process events)
  *
- * @param    {string}    locator  Element locator; must be a css= one
+ * @param    {string}    locator  Element locator
  * @param    {string}    text     The text to put in
  * @return   {function}           doWaitForCondition instance
  */
 Selenium.prototype.doTypeRedactor = function (locator, text) {
-  if (!locator.match(/^css=/))
-    throw new Error('Currently, typeRedactor supports "css=*" locators only');
-
-  /* findElement throws if the element isn't found */
   var element = this.page().findElement(locator);
+  var self = this;
+  selenium._typedRedactor = false;
 
-  var escapedLocator = locator.replace(/'/g, "\\'");
-  var escapedText    = text.replace(/'/g, "\\'");
-  var jQueryLocator  = "$('" + escapedLocator.replace('css=', '') + "')";
-  var className      = "seleniumDoTypeRedactor-" + (new Date()).getTime();
+  self.doKeyDown(locator, '\\0');
+  self.doKeyUp(locator, '\\0');
+  element.innerHTML = 'redactor';
+  setTimeout(function () {
+    self.doKeyDown(locator, '\\0');
+    self.doKeyUp(locator, '\\0');
+    element.innerHTML = text;
+    setTimeout(function () {
+      self.doKeyDown(locator, '\\0');
+      self.doKeyUp(locator, '\\0');
+      selenium._typedRedactor = true;
+    }, 50);
+  }, 50);
 
-  this.doRunScript(jQueryLocator + ".keydown().keyup().html('redactor');\
-    setTimeout(function () {\
-      " + jQueryLocator + ".keydown().keyup().html('" + escapedText + "');\
-      setTimeout(function () {\
-        " + jQueryLocator + ".keydown().keyup().addClass('" + className + "');\
-      }, 50);\
-    }, 50);\
-  ");
-  return this.doWaitForCondition("!!selenium.browserbot.findElementOrNull('css=."+className+"')", this.defaultTimeout);
+  return this.doWaitForCondition("selenium._typedRedactor", this.defaultTimeout);
 };
 /**
- * node-wd-sync version of the above which will be included with the test.
+ * wd-sync version of the above which will be included with generated tests.
  *
  * @throws   on error bubbles
  *
@@ -105,9 +107,9 @@ Selenium.prototype.doTypeRedactor = function (locator, text) {
  *
  * @todo     Figure out why executeAsync doesn't return and get rid of className
  *           hack.
- * @note     Requires https://github.com/DanielSmedegaardBuus/node-wd-sync or
- *           pull request https://github.com/sebv/node-wd-sync/pull/30 to be
- *           merged to npm version.
+ * @note     Requires wd-sync-raw or pull request
+ *           https://github.com/sebv/node-wd-sync/pull/30 to be merged to
+ *           vanilla wd-sync.
  * @note     There's something odd going on with .executeAsync in node-wd-sync.
  *           We should be able to use it in a synchronous fashion to pick up
  *           callback return values directly, à la
@@ -118,7 +120,7 @@ Selenium.prototype.doTypeRedactor = function (locator, text) {
  *
  * @param    {string}    target   Selenese <target> attribute value
  * @param    {string}    value    Selenese <value> attribute value
- * @param    {WD Object} element  <target> as wd-sync browser element if
+ * @param    {wd-sync}   element  <target> as wd-sync browser element if
  *                                <target> is a locator and the element exists,
  *                                otherwise null.
  * @return   {void}
