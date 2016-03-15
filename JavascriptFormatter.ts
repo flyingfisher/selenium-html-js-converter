@@ -538,8 +538,9 @@ CallSelenium.prototype.toString = function() {
   log.info('Processing ' + this.message);
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
-  if (this.message.match(/^(getEval|runScript)/))
-    adaptor.rawArgs = this.rawArgs || this.args; 
+  if (this.message.match(/^(getEval|runScript)/)){
+      adaptor.rawArgs = this.args; 
+  }
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
