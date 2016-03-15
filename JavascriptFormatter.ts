@@ -539,7 +539,7 @@ CallSelenium.prototype.toString = function() {
   var result = '';
   var adaptor = new SeleniumWebDriverAdaptor(this.rawArgs);
   if (this.message.match(/^(getEval|runScript)/))
-    adaptor.rawArgs = this.rawArgs || this.args; 
+    adaptor.rawArgs = this.args; 
   if (adaptor[this.message]) {
     var codeBlock = adaptor[this.message].call(adaptor);
     if (adaptor.negative) {
