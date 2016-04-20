@@ -150,7 +150,7 @@ function formatCommands(commands) {
         line = andWait(line);
       }
       /* For debugging test failures and for screenshotting, we use currentCommand to keep track of what last ran: */
-      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/'/g, "\\'") + '", ' + '"' + command.value.replace(/'/g, "\\'") + '")\';\n' + line + '\n';
+      line = 'currentCommand = \'' + commandName + '(' + '"' + command.target.replace(/(['\\])/g, "\\$1") + '", ' + '"' + command.value.replace(/(['\\])/g, "\\$1") + '")\';\n' + line + '\n';
       command.line = line;
     } else if (command.type == 'comment') {
       line = formatComment(command);
