@@ -41,6 +41,8 @@ function waitForPageToLoad (wdBrowser) {
 }
 
 function getRuntimeOptions (opts) {
+    if (!opts) return;
+    
     if (typeof opts.lbParam === 'object') {
         options.lbParam = opts.lbParam;
     }
